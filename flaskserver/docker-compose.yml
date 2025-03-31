@@ -1,10 +1,13 @@
-version: '3.8'
 services:
   postgres:
     image: postgres:13
     container_name: postgres_db
     env_file:
       - .env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
     ports:
       - "5432:5432"
     volumes:
@@ -15,6 +18,9 @@ services:
     container_name: flask_server
     env_file:
       - .env
+    environment:
+      FLASK_APP: app.py
+      FLASK_RUN_HOST: "0.0.0.0"
     ports:
       - "5000:5000"
     depends_on:
@@ -28,7 +34,6 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-      # Permite acesso externo e definição do hostname interno (opcional)
       PGADMIN_CONFIG_SERVER_MODE: "False"
     ports:
       - "5050:80"
