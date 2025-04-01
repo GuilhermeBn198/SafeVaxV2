@@ -1,6 +1,6 @@
 # SafeVax V2
 
-O SafeVax é um sistema inovador voltado para o monitoramento e a segurança no armazenamento de vacinas em ambientes hospitalares. Desenvolvido para reduzir riscos e aumentar a eficiência no gerenciamento e administração de vacinas, o projeto utiliza sensores IoT (como DHT11, RFID e sensores de abertura/fechamento de portas) para garantir que as condições ideais de conservação sejam sempre mantidas.
+O SafeVax é um sistema inovador voltado para o monitoramento e a segurança no armazenamento de vacinas em ambientes hospitalares. Desenvolvido para reduzir riscos e aumentar a eficiência no gerenciamento e administração de vacinas, o projeto utiliza sensores IoT (como DHT11 e RFID) para garantir que as condições ideais de conservação sejam sempre mantidas.
 
 ---
 
@@ -38,7 +38,6 @@ Esta abordagem integrada visa assegurar uma gestão mais eficiente e segura, min
 - **Sensor DHT11:** Monitoramento em tempo real da temperatura interna.
 - **Sensor de Abertura/Fechamento de Portas:** Registro preciso dos acessos.
 - **Leitura de RFID:** Identificação dos usuários que acessam os equipamentos.
-- **Relé Eletrônico:** Controle de acesso para abertura/fechamento das portas dos refrigeradores.
 - **Servidor MQTT:** Responsável por receber e processar os dados enviados pelos dispositivos.
 - **Integração com Sistemas Hospitalares:** Sincronização dos dados para monitoramento centralizado.
 - **Alertas via WhatsApp:** Notificações automáticas para gestores em casos de irregularidades.
