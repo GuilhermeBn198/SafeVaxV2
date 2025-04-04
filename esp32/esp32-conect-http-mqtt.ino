@@ -14,9 +14,9 @@
 // Substitua pelo endereço do seu servidor Flask
 const char* serverName = "http://localhost:5000/api/data";
 
-// Configurações do sensor DHT (use DHT11 ou DHT22 conforme seu hardware)
+// Configurações do sensor DHT
 #define DHT_PIN     4
-#define DHT_TYPE    DHT11  // Ou DHT22, se for o caso
+#define DHT_TYPE    DHT11 
 DHT dht(DHT_PIN, DHT_TYPE);
 
 // Pinos do sensor ultrassônico (se estiver sendo utilizado)
@@ -25,7 +25,7 @@ DHT dht(DHT_PIN, DHT_TYPE);
 
 // LEDs de status
 #define LED_OK_PIN    2   // LED Verde
-#define LED_ALERT_PIN 15  // LED Vermelho (exemplo)
+#define LED_ALERT_PIN 15  // LED Vermelho
 
 // Pinos do Módulo PN532 (RFID)
 #define SDA_PIN 21
