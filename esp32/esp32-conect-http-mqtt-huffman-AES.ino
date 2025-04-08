@@ -3,494 +3,298 @@
 #include <PubSubClient.h>
 #include <DHT.h>
 #include <SPI.h>
-#include <time.h>
 #include <Adafruit_PN532.h>
 #include <LiquidCrystal.h>
-
-// Para Huffman:
+#include <AESLib.h>
+#include <base64.h>
 #include <map>
 #include <queue>
 
-// ----- IMPLEMENTAÇÃO DO HUFFMAN -----
+// ======== HUFFMAN IMPLEMENTATION ========
 struct HuffmanNode {
-  char ch;
-  int freq;
-  HuffmanNode *left;
-  HuffmanNode *right;
-  HuffmanNode(char _ch, int _freq) : ch(_ch), freq(_freq), left(NULL), right(NULL) {}
+  char ch; int freq;
+  HuffmanNode *left, *right;
+  HuffmanNode(char c, int f): ch(c), freq(f), left(NULL), right(NULL) {}
 };
-
 struct CompareNode {
-  bool operator()(HuffmanNode* const & n1, HuffmanNode* const & n2) {
-    return n1->freq > n2->freq;
-  }
+  bool operator()(HuffmanNode* a, HuffmanNode* b) { return a->freq > b->freq; }
 };
-
-HuffmanNode* huffmanTree = NULL;
-std::map<char, String> huffmanCodes;
-
-void buildHuffmanCodes(HuffmanNode* root, String code) {
-  if (!root) return;
-  if (root->left == NULL && root->right == NULL) {
-    huffmanCodes[root->ch] = code;
-  }
-  buildHuffmanCodes(root->left, code + "0");
-  buildHuffmanCodes(root->right, code + "1");
-}
+HuffmanNode* huffmanTree;
+std::map<char,String> huffmanCodes;
 
 HuffmanNode* buildHuffmanTree(const String &data) {
-  std::map<char, int> freq;
-  for (int i = 0; i < data.length(); i++) {
-    freq[data[i]]++;
-  }
-  std::priority_queue<HuffmanNode*, std::vector<HuffmanNode*>, CompareNode> pq;
-  for (auto pair : freq) {
-    pq.push(new HuffmanNode(pair.first, pair.second));
-  }
-  while (pq.size() > 1) {
-    HuffmanNode* left = pq.top(); pq.pop();
-    HuffmanNode* right = pq.top(); pq.pop();
-    HuffmanNode* merged = new HuffmanNode('\0', left->freq + right->freq);
-    merged->left = left;
-    merged->right = right;
-    pq.push(merged);
+  std::map<char,int> freq;
+  for(char c: data) freq[c]++;
+  std::priority_queue<HuffmanNode*,std::vector<HuffmanNode*>,CompareNode> pq;
+  for(auto &p: freq) pq.push(new HuffmanNode(p.first,p.second));
+  while(pq.size()>1) {
+    HuffmanNode* l = pq.top(); pq.pop();
+    HuffmanNode* r = pq.top(); pq.pop();
+    HuffmanNode* m = new HuffmanNode('\0',l->freq+r->freq);
+    m->left=l; m->right=r;
+    pq.push(m);
   }
   return pq.top();
 }
-
-String huffmanCompress(const String &data) {
-  String compressed = "";
-  for (int i = 0; i < data.length(); i++) {
-    compressed += huffmanCodes[data[i]];
+void buildHuffmanCodes(HuffmanNode* node, String code="") {
+  if(!node) return;
+  if(!node->left && !node->right) huffmanCodes[node->ch]=code;
+  buildHuffmanCodes(node->left, code+"0");
+  buildHuffmanCodes(node->right, code+"1");
+}
+String huffmanCompress(const String &s) {
+  String out="";
+  for(char c: s) out+=huffmanCodes[c];
+  return out;
+}
+String huffmanDecompress(const String &bits, HuffmanNode* root) {
+  String out=""; HuffmanNode* cur=root;
+  for(char b: bits) {
+    cur = (b=='0'?cur->left:cur->right);
+    if(!cur->left && !cur->right) { out+=cur->ch; cur=root; }
   }
-  return compressed;
+  return out;
 }
 
-String huffmanDecompress(const String &compressed, HuffmanNode* root) {
-  String decompressed = "";
-  HuffmanNode* curr = root;
-  for (int i = 0; i < compressed.length(); i++) {
-    if (compressed[i] == '0')
-      curr = curr->left;
-    else
-      curr = curr->right;
-    if (!curr->left && !curr->right) {
-      decompressed += curr->ch;
-      curr = root;
-    }
-  }
-  return decompressed;
+// ======== AES‑CBC IMPLEMENTATION ========
+static const uint8_t AES_KEY[32] = {
+  0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+  0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+  0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+  0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+};
+AESLib aesLib;
+void generateIV(uint8_t *iv) {
+  for(int i=0;i<16;i++) iv[i]=random(0,256);
+}
+String aes_encrypt(const String &plain) {
+  int len = plain.length();
+  int padded = ((len+15)/16)*16;
+  uint8_t iv[16]; generateIV(iv);
+  uint8_t cipher[padded];
+  aesLib.encryptCBC((uint8_t*)plain.c_str(), len, cipher, AES_KEY, 256, iv);
+  uint8_t msg[16+padded]; memcpy(msg,iv,16); memcpy(msg+16,cipher,padded);
+  int b64len = base64_enc_len(16+padded);
+  char b64[b64len+1]; base64_encode(b64,(char*)msg,16+padded);
+  return String(b64);
+}
+String aes_decrypt(const String &b64) {
+  int bl = b64.length();
+  int dl = base64_dec_len(b64.c_str(),bl);
+  uint8_t buf[dl]; base64_decode((char*)buf,b64.c_str(),bl);
+  uint8_t iv[16]; memcpy(iv,buf,16);
+  int clen = dl-16; uint8_t plain[clen];
+  aesLib.decryptCBC(buf+16,clen,plain,AES_KEY,256,iv);
+  return String((char*)plain);
 }
 
-// ----- FIM DO HUFFMAN -----
+// ======== HARDWARE CONFIG ========
+#define DHT_PIN_IN   4
+#define DHT_PIN_EXT  12
+#define DHT_TYPE     DHT11
+DHT dht_in(DHT_PIN_IN,DHT_TYPE), dht_ext(DHT_PIN_EXT,DHT_TYPE);
 
+#define TRIG_PIN     5
+#define ECHO_PIN     25
 
-// --------------------------------------------------------------------------------
-// Definições de pinos e constantes do projeto
-// --------------------------------------------------------------------------------
+#define LED_OK_PIN    2
+#define LED_ALERT_PIN 15
 
-// Sensor DHT interno (container)
-#define DHT_PIN_IN 4
-#define DHT_TYPE   DHT11 
-DHT dht_in(DHT_PIN_IN, DHT_TYPE);
+#define SDA_PIN      21
+#define SCL_PIN      22
+Adafruit_PN532 nfc(SDA_PIN,SCL_PIN);
 
-// Sensor DHT externo (sala)
-#define DHT_PIN_EXT 12
-DHT dht_ext(DHT_PIN_EXT, DHT_TYPE);
-
-// Sensor ultrassônico
-#define TRIG_PIN 5
-#define ECHO_PIN 25
-
-// LEDs de status
-#define LED_OK_PIN    2   // LED Verde (status normal)
-#define LED_ALERT_PIN 15  // LED Vermelho (alerta)
-
-// Módulo PN532 (RFID)
-#define SDA_PIN 21
-#define SCL_PIN 22
-Adafruit_PN532 nfc(SDA_PIN, SCL_PIN);
-
-// Configuração do LCD 16x4 (pinos de exemplo)
 #define LCD_RS 26
 #define LCD_E  27
-#define LCD_D4 28
-#define LCD_D5 29
-#define LCD_D6 30
-#define LCD_D7 31
-LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
+#define LCD_D4 14
+#define LCD_D5 12
+#define LCD_D6 13
+#define LCD_D7 15
+LiquidCrystal lcd(LCD_RS,LCD_E,LCD_D4,LCD_D5,LCD_D6,LCD_D7);
 
-// Limites e variáveis de temperatura (container)
-#define TEMP_MIN 2.0
-#define TEMP_MAX 8.0
-float THRESHOLD_TEMP = 9.0;       // Limite para alerta de alta temperatura
-unsigned long tempAboveStart = 0; // Tempo em que a temperatura ficou acima do limiar
+// TIMING
+const unsigned long PERIODIC_SEND_INTERVAL=60000;
+const unsigned long GREEN_BLINK_INTERVAL=5000;
+const unsigned long RED_BLINK_INTERVAL=1000;
+const unsigned long TEMP_ALERT_DURATION=10000;
+const unsigned long UNAUTH_WINDOW_BEFORE=60000;
+const float distancia_limite=10.0;
 
-// Intervalos de tempo (milissegundos)
-const unsigned long PERIODIC_SEND_INTERVAL = 60000;    // 1 minuto
-const unsigned long GREEN_BLINK_INTERVAL   = 5000;     // LED verde: 5s
-const unsigned long RED_BLINK_INTERVAL     = 1000;     // LED vermelho: 1s
-const unsigned long UNAUTH_WINDOW_BEFORE   = 60000;     // 1 minuto antes
-const unsigned long UNAUTH_WINDOW_AFTER    = 15000;     // 15 segundos depois
-const unsigned long TEMP_ALERT_DURATION    = 10000;     // 10s de alta temperatura
+// MQTT / WIFI
+const char* ssid="Starlink_CIT";
+const char* password="Ufrr@2024Cit";
+const char* mqtt_server="cd8839ea5ec5423da3aaa6691e5183a5.s1.eu.hivemq.cloud";
+const int   mqtt_port=8883;
+const char* mqtt_user="hivemq.webclient.1734636778463";
+const char* mqtt_pass="EU<pO3F7x?S%wLk4#5ib";
 
-// Distância para considerar porta fechada
-const float distancia_limite = 10.0;
+String centro="centroDeVacinaXYZ", container="containerXYZ";
+String mqtt_topic="/" + centro + "/" + container;
+const char* control_topic="esp32/control";
 
-// MQTT: Tópicos – configurados via variáveis para facilitar alteração
-String centro    = "centroDeVacinaXYZ";
-String container = "containerXYZ";
-String mqtt_topic = "/" + centro + "/" + container;  // Ex: /centroDeVacinaXYZ/containerXYZ
-
-// Tópico de controle para receber comandos remotos (ex.: mudança de tópico)
-const char* control_topic = "esp32/control";
-
-// Configurações da rede Wi-Fi
-const char* ssid     = "Starlink_CIT";
-const char* password = "Ufrr@2024Cit";
-
-// Configurações do HiveMQ (broker MQTT)
-const char* mqtt_server   = "cd8839ea5ec5423da3aaa6691e5183a5.s1.eu.hivemq.cloud";
-const int   mqtt_port     = 8883;
-const char* mqtt_username = "hivemq.webclient.1734636778463";
-const char* mqtt_password = "EU<pO3F7x?S%wLk4#5ib";
-
-// Objetos de rede e MQTT
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
-// Variáveis globais de controle
-unsigned long lastPeriodicSend = 0;
-unsigned long lastGreenBlink   = 0;
-unsigned long lastRedBlink     = 0;
-
-String usuarioAtual = "desconhecido";
-bool doorOpen       = false;
-bool alarmState     = false;
-
-unsigned long doorOpenTime = 0;  // Tempo em que a porta foi aberta
-unsigned long lastRFIDTime = 0;  // Última leitura de RFID
-
-// Histórico de temperaturas (sensor interno) – últimos 10 valores
+// STATE
+unsigned long lastSend=0, lastGreen=0, lastRed=0;
+String usuario="desconhecido";
+bool doorOpen=false, alarmState=false;
+unsigned long lastRFID=0, tempAboveStart=0;
 #define TEMP_HISTORY_SIZE 10
-float tempHistory[TEMP_HISTORY_SIZE] = {0};
-int tempIndex = 0;
-bool avgAlertActive = false; // Indica se alerta de média está ativo
+float tempHist[TEMP_HISTORY_SIZE]={0};
+int tempIdx=0; bool avgAlert=false;
 
-// ----- Variáveis globais do Huffman -----
-// Usaremos um dicionário estático construído a partir de um sample representativo dos caracteres do payload.
+// FOR HUFFMAN SAMPLE
 String sampleAlphabet = "{\"temperatura_interna\": 0.00,\"umidade_interna\": 0.00,\"temperatura_externa\": 0.00,\"umidade_externa\": 0.00,\"estado_porta\": \"Fechada\",\"usuario\": \"desconhecido\",\"alarm_state\": \"OK\",\"motivo\": \"periodic\"}";
- 
-// ----- SETUP ----- 
+
+// ======== SETUP ========
 void setup() {
   Serial.begin(115200);
-
-  // Configura LEDs
-  pinMode(LED_OK_PIN, OUTPUT);
-  pinMode(LED_ALERT_PIN, OUTPUT);
-
-  // Configura sensor ultrassônico
-  pinMode(TRIG_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
-
-  // Inicializa sensores DHT
-  dht_in.begin();
-  dht_ext.begin();
-
-  // Inicializa módulo PN532 (RFID)
-  Serial.println("Inicializando PN532...");
-  nfc.begin();
-  uint32_t versiondata = nfc.getFirmwareVersion();
-  if (versiondata) {
-    nfc.SAMConfig();
-    Serial.println("PN532 inicializado com sucesso.");
-  } else {
-    Serial.println("Módulo PN532 não detectado.");
-  }
-
-  // Inicializa display LCD
-  lcd.begin(16, 4);
-  lcd.clear();
-  lcd.print("Iniciando...");
-
-  // Conexão Wi-Fi
-  setup_wifi();
-
-  // Configura MQTT
+  randomSeed(micros());
+  pinMode(LED_OK_PIN,OUTPUT); pinMode(LED_ALERT_PIN,OUTPUT);
+  pinMode(TRIG_PIN,OUTPUT); pinMode(ECHO_PIN,INPUT);
+  dht_in.begin(); dht_ext.begin();
+  lcd.begin(16,4); lcd.print("Iniciando...");
+  nfc.begin(); if(nfc.getFirmwareVersion()) nfc.SAMConfig();
+  WiFi.begin(ssid,password);
+  while(WiFi.status()!=WL_CONNECTED){delay(500);Serial.print(".");}
   espClient.setInsecure();
-  client.setServer(mqtt_server, mqtt_port);
+  client.setServer(mqtt_server,mqtt_port);
   client.setCallback(callback);
 
-  // ----- Constrói a árvore Huffman e o dicionário estático -----
+  // build Huffman
   huffmanTree = buildHuffmanTree(sampleAlphabet);
-  buildHuffmanCodes(huffmanTree, "");
-  
-  Serial.println("Dicionário Huffman construído:");
-  for (auto pair : huffmanCodes) {
-    Serial.print(pair.first);
-    Serial.print(": ");
-    Serial.println(pair.second);
-  }
+  buildHuffmanCodes(huffmanTree);
 }
 
-// ----- LOOP -----
+// ======== LOOP ========
 void loop() {
-  if (!client.connected()) {
-    reconnect();
+  if(!client.connected()) {
+    while(!client.connected()){
+      client.connect("ESP32",mqtt_user,mqtt_pass);
+      delay(5000);
+    }
+    client.subscribe(control_topic);
   }
   client.loop();
 
-  atualizarTempHistory();
-  verificarRFID();
-  atualizarDoorState();
-  checarEventos();
-  atualizarLCD();
-
-  unsigned long now = millis();
-  if (now - lastPeriodicSend >= PERIODIC_SEND_INTERVAL) {
-    lastPeriodicSend = now;
-    enviarDados("periodic");
+  // periodic send
+  unsigned long now=millis();
+  if(now-lastSend>=PERIODIC_SEND_INTERVAL){
+    lastSend=now;
+    sendData("periodic");
   }
-
-  if (!alarmState && (now - lastGreenBlink >= GREEN_BLINK_INTERVAL)) {
-    lastGreenBlink = now;
-    blinkLED(LED_OK_PIN, 100);
+  // LEDs
+  if(!alarmState && now-lastGreen>=GREEN_BLINK_INTERVAL){
+    lastGreen=now; blink(LED_OK_PIN,100);
   }
-
-  if (alarmState && (now - lastRedBlink >= RED_BLINK_INTERVAL)) {
-    lastRedBlink = now;
-    blinkLED(LED_ALERT_PIN, 100);
+  if(alarmState && now-lastRed>=RED_BLINK_INTERVAL){
+    lastRed=now; blink(LED_ALERT_PIN,100);
   }
-
-  atualizarLEDs();
 }
 
-// ----- FUNÇÕES AUXILIARES ----- 
+// ======== FUNCTIONS ========
+void blink(uint8_t pin,int d){ digitalWrite(pin,HIGH); delay(d); digitalWrite(pin,LOW); }
 
-void setup_wifi() {
-  delay(10);
-  Serial.println("Conectando ao Wi-Fi...");
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nWi-Fi conectado!");
-  Serial.print("IP: ");
-  Serial.println(WiFi.localIP());
+float measureDistance(){
+  digitalWrite(TRIG_PIN,LOW); delayMicroseconds(2);
+  digitalWrite(TRIG_PIN,HIGH); delayMicroseconds(10);
+  digitalWrite(TRIG_PIN,LOW);
+  long dur=pulseIn(ECHO_PIN,HIGH);
+  return (dur*0.034)/2.0;
 }
 
-void reconnect() {
-  while (!client.connected()) {
-    Serial.println("Reconectando ao HiveMQ...");
-    if (client.connect("ESP32_Client", mqtt_username, mqtt_password)) {
-      Serial.println("Conectado ao HiveMQ!");
-      client.subscribe(control_topic);
-    } else {
-      delay(5000);
+void updateTempHist(){
+  float t=dht_in.readTemperature();
+  tempHist[tempIdx]=t; tempIdx=(tempIdx+1)%TEMP_HISTORY_SIZE;
+  if(TEMP_HISTORY_SIZE>=10){
+    float s5=tempHist[tempIdx],s10=s5;
+    for(int i=1;i<5;i++) s5+=tempHist[(tempIdx-i+TEMP_HISTORY_SIZE)%TEMP_HISTORY_SIZE];
+    for(int i=1;i<10;i++) s10+=tempHist[(tempIdx-i+TEMP_HISTORY_SIZE)%TEMP_HISTORY_SIZE];
+    if(s5/5.0 > s10/10.0 && !avgAlert){
+      avgAlert=true; sendData("avg_temp_alert");
+    }
+    else if(s5/5.0 <= s10/10.0 && avgAlert){
+      avgAlert=false; sendData("avg_temp_stable");
     }
   }
 }
 
-void blinkLED(uint8_t pin, int duration) {
-  digitalWrite(pin, HIGH);
-  delay(duration);
-  digitalWrite(pin, LOW);
+void checkEvents(){
+  float t=dht_in.readTemperature();
+  if(t>THRESHOLD_TEMP){
+    if(!tempAboveStart) tempAboveStart=millis();
+    else if(millis()-tempAboveStart>=TEMP_ALERT_DURATION){
+      sendData("temp_high"); alarmState=true;
+    }
+  } else tempAboveStart=0;
 }
 
-void atualizarTempHistory() {
-  float tempAtual = dht_in.readTemperature();
-  tempHistory[tempIndex] = tempAtual;
-  tempIndex = (tempIndex + 1) % TEMP_HISTORY_SIZE;
-  
-  if (TEMP_HISTORY_SIZE >= 10) {
-    float soma5 = tempAtual;
-    float soma10 = tempAtual;
-    for (int i = 1; i < 5; i++) {
-      int idx = (tempIndex - i + TEMP_HISTORY_SIZE) % TEMP_HISTORY_SIZE;
-      soma5 += tempHistory[idx];
-    }
-    for (int i = 1; i < 10; i++) {
-      int idx = (tempIndex - i + TEMP_HISTORY_SIZE) % TEMP_HISTORY_SIZE;
-      soma10 += tempHistory[idx];
-    }
-    float avg5 = soma5 / 5.0;
-    float avg10 = soma10 / 10.0;
-    if (avg5 > avg10) {
-      if (!avgAlertActive) {
-        Serial.println("Alerta de média: condição alterada.");
-        avgAlertActive = true;
-        enviarDados("avg_temp_alert");
+void updateDoor(){
+  bool nowOpen = measureDistance()>distancia_limite;
+  if(nowOpen!=doorOpen){
+    doorOpen=nowOpen;
+    if(doorOpen){
+      if(millis()-lastRFID>UNAUTH_WINDOW_BEFORE){
+        sendData("unauthorized_door"); alarmState=true;
       }
-    } else {
-      if (avgAlertActive) {
-        Serial.println("Média estabilizada.");
-        avgAlertActive = false;
-        enviarDados("avg_temp_stable");
+    } else alarmState=false;
+  }
+}
+
+void verifyRFID(){
+  if(nfc.inListPassiveTarget()){
+    uint8_t uid[7],len;
+    if(nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A,uid,&len)){
+      String u="";
+      for(int i=0;i<len;i++) u+=String(uid[i],HEX);
+      if(u!=usuario){
+        usuario=u; lastRFID=millis();
+        if(doorOpen) sendData("rfid_door");
       }
     }
   }
 }
 
-void verificarRFID() {
-  uint8_t success = nfc.inListPassiveTarget();
-  if (success > 0) {
-    uint8_t uid[7];
-    uint8_t uidLength;
-    if (nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength)) {
-      String novoUsuario = "";
-      for (uint8_t i = 0; i < uidLength; i++) {
-        novoUsuario += String(uid[i], HEX);
-      }
-      if (novoUsuario != usuarioAtual) {
-        usuarioAtual = novoUsuario;
-        lastRFIDTime = millis();
-        Serial.println("Novo usuário identificado: " + usuarioAtual);
-        if (doorOpen) {
-          enviarDados("rfid_door");
-        }
-      }
-    }
-  }
-}
-
-void atualizarDoorState() {
-  float distancia = medirDistancia();
-  bool newDoorOpen = (distancia > distancia_limite);
-  if (newDoorOpen != doorOpen) {
-    doorOpen = newDoorOpen;
-    if (doorOpen) {
-      doorOpenTime = millis();
-      Serial.println("Porta aberta (ultrassônico).");
-      if (millis() - lastRFIDTime > UNAUTH_WINDOW_BEFORE) {
-        enviarDados("unauthorized_door");
-        alarmState = true;
-      }
-    } else {
-      Serial.println("Porta fechada (ultrassônico).");
-      alarmState = false;
-    }
-  }
-}
-
-void checarEventos() {
-  float temperatura = dht_in.readTemperature();
-  if (temperatura > THRESHOLD_TEMP) {
-    if (tempAboveStart == 0) {
-      tempAboveStart = millis();
-    } else if (millis() - tempAboveStart >= TEMP_ALERT_DURATION) {
-      Serial.println("Temperatura alta por mais de 10 segundos.");
-      enviarDados("temp_high");
-      alarmState = true;
-    }
-  } else {
-    tempAboveStart = 0;
-  }
-}
-
-void atualizarLEDs() {
-  if (alarmState) {
-    digitalWrite(LED_ALERT_PIN, HIGH);
-    digitalWrite(LED_OK_PIN, LOW);
-  } else {
-    digitalWrite(LED_ALERT_PIN, LOW);
-    digitalWrite(LED_OK_PIN, HIGH);
-  }
-}
-
-void atualizarLCD() {
-  float tempInterna = dht_in.readTemperature();
-  float tempExterna = dht_ext.readTemperature();
-  float umidadeExterna = dht_ext.readHumidity();
-  
+void updateLCD(){
+  float ti=dht_in.readTemperature(), te=dht_ext.readTemperature(), he=dht_ext.readHumidity();
   lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Int:");
-  lcd.print(tempInterna, 1);
-  lcd.print("C Ext:");
-  lcd.print(tempExterna, 1);
-  lcd.print("C");
-  
-  lcd.setCursor(0, 1);
-  lcd.print("Porta:");
-  lcd.print(doorOpen ? "Aberta" : "Fechada");
-  
-  lcd.setCursor(0, 2);
-  lcd.print("Umid Ext:");
-  lcd.print(umidadeExterna, 1);
-  lcd.print("%");
-  
-  lcd.setCursor(0, 3);
-  lcd.print("Status:");
-  lcd.print(alarmState ? "ALERT" : "OK");
+  lcd.setCursor(0,0); lcd.printf("Int:%.1fC Ext:%.1fC",ti,te);
+  lcd.setCursor(0,1); lcd.print("Porta:"); lcd.print(doorOpen?"Aberta":"Fechada");
+  lcd.setCursor(0,2); lcd.printf("Umid Ext:%.1f%%",he);
+  lcd.setCursor(0,3); lcd.print("Stat:"); lcd.print(alarmState?"ALERT":"OK");
 }
 
-// Função para enviar dados via MQTT com compressão Huffman
-void enviarDados(String motivo) {
-  float temperatura = dht_in.readTemperature();
-  float umidade     = dht_in.readHumidity();
-  float distancia   = medirDistancia();
-  String estado_porta = (distancia <= distancia_limite) ? "Fechada" : "Aberta";
-  
-  float temperatura_ext = dht_ext.readTemperature();
-  float umidade_ext     = dht_ext.readHumidity();
-  
+void sendData(const String &reason){
+  updateTempHist(); verifyRFID(); updateDoor(); checkEvents(); updateLCD();
+  float ti=dht_in.readTemperature(), hi=dht_in.readHumidity();
+  float te=dht_ext.readTemperature(), he=dht_ext.readHumidity();
+  String portState = (measureDistance()<=distancia_limite?"Fechada":"Aberta");
   String payload = "{";
-  payload += "\"temperatura_interna\": " + String(temperatura, 2) + ",";
-  payload += "\"umidade_interna\": " + String(umidade, 2) + ",";
-  payload += "\"temperatura_externa\": " + String(temperatura_ext, 2) + ",";
-  payload += "\"umidade_externa\": " + String(umidade_ext, 2) + ",";
-  payload += "\"estado_porta\": \"" + estado_porta + "\",";
-  payload += "\"usuario\": \"" + usuarioAtual + "\",";
-  payload += "\"alarm_state\": \"" + String(alarmState ? "ALERT" : "OK") + "\",";
-  payload += "\"motivo\": \"" + motivo + "\"";
-  payload += "}";
-  
-  // Comprima o payload usando Huffman
-  String compressedPayload = huffmanCompress(payload);
-  
-  if (client.publish(mqtt_topic.c_str(), compressedPayload.c_str())) {
-    Serial.println("Dados enviados (comprimidos) via MQTT: " + compressedPayload);
-  } else {
-    Serial.println("Falha no envio via MQTT.");
-  }
+  payload += "\"temperatura_interna\":" + String(ti,2) + ",";
+  payload += "\"umidade_interna\":" + String(hi,2) + ",";
+  payload += "\"temperatura_externa\":" + String(te,2) + ",";
+  payload += "\"umidade_externa\":" + String(he,2) + ",";
+  payload += "\"estado_porta\":\"" + portState + "\",";
+  payload += "\"usuario\":\"" + usuario + "\",";
+  payload += "\"alarm_state\":\"" + String(alarmState?"ALERT":"OK") + "\",";
+  payload += "\"motivo\":\"" + reason + "\"}";
+  // compress + encrypt
+  String comp = huffmanCompress(payload);
+  String enc = aes_encrypt(comp);
+  client.publish(mqtt_topic.c_str(), enc.c_str());
 }
 
-// Mede a distância usando o sensor ultrassônico
-float medirDistancia() {
-  digitalWrite(TRIG_PIN, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_PIN, LOW);
-  long duracao = pulseIn(ECHO_PIN, HIGH);
-  return (duracao * 0.034) / 2.0;
-}
-
-// Callback para mensagens MQTT recebidas; descomprime se necessário
-void callback(char* topic, byte* payload, unsigned int length) {
-  String message = "";
-  for (unsigned int i = 0; i < length; i++) {
-    message += (char)payload[i];
-  }
-  // Se a mensagem veio do tópico de controle, a descomprime
-  if (String(topic) == control_topic) {
-    String decompressed = huffmanDecompress(message, huffmanTree);
-    Serial.println("Mensagem recebida (descomprimida) em [" + String(topic) + "]: " + decompressed);
-    // Aqui você pode processar o comando, por exemplo, alterar o tópico MQTT.
-    if (decompressed.indexOf("change_topic") >= 0) {
-      int firstSep = decompressed.indexOf(";");
-      int secondSep = decompressed.indexOf(";", firstSep + 1);
-      if (firstSep > 0 && secondSep > firstSep) {
-        String novoCentro = decompressed.substring(firstSep + 1, secondSep);
-        String novoContainer = decompressed.substring(secondSep + 1);
-        centro = novoCentro;
-        container = novoContainer;
-        mqtt_topic = "/" + centro + "/" + container;
-        Serial.println("Novo MQTT topic: " + mqtt_topic);
-      }
+void callback(char* topic, byte* pl, unsigned int len){
+  String msg=""; for(unsigned int i=0;i<len;i++) msg+=(char)pl[i];
+  if(String(topic)==control_topic){
+    String dec = aes_decrypt(msg);
+    String cmd = huffmanDecompress(dec,huffmanTree);
+    if(cmd.startsWith("change_topic")){
+      int a=cmd.indexOf(';'), b=cmd.indexOf(';',a+1);
+      centro   = cmd.substring(a+1,b);
+      container= cmd.substring(b+1);
+      mqtt_topic="/" + centro + "/" + container;
     }
-  } else {
-    Serial.println("Mensagem recebida em [" + String(topic) + "]: " + message);
   }
 }
