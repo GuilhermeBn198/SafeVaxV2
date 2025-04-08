@@ -62,7 +62,7 @@ O SafeVax automatiza o monitoramento dos refrigeradores de vacinas através de:
 
 ## Desenvolvedores
 
-- **Guilherme Lucas Pereira Bernardo** – _Líder de Projeto & Desenvolvedor_ ~
+- **Guilherme Lucas Pereira Bernardo** – _Líder de Projeto & Desenvolvedor_ ~ @GuilhermeBn198
 - **Vinícius Brito** – _Especialista em Hardware_ ~ @ViniKhael  
 - **Ruan Oliveira** – _Desenvolvedor de Software e Especialista em Saúde_ ~ @rouancb  
 - **Gabriel Guilherme** – _Engenheiro de Dados_ ~ @Bounded-Bytes  
