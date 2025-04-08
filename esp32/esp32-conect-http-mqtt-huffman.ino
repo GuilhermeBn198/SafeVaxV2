@@ -89,13 +89,13 @@ String huffmanDecompress(const String &compressed, HuffmanNode* root) {
 // Definições de pinos e constantes do projeto
 // --------------------------------------------------------------------------------
 
-// Sensor DHT interno (container)
+// Sensor DHT interno (container) 
 #define DHT_PIN_IN 4
 #define DHT_TYPE   DHT11 
 DHT dht_in(DHT_PIN_IN, DHT_TYPE);
 
 // Sensor DHT externo (sala)
-#define DHT_PIN_EXT 12
+#define DHT_PIN_EXT 14
 DHT dht_ext(DHT_PIN_EXT, DHT_TYPE);
 
 // Sensor ultrassônico
@@ -114,10 +114,10 @@ Adafruit_PN532 nfc(SDA_PIN, SCL_PIN);
 // Configuração do LCD 16x4 (pinos de exemplo)
 #define LCD_RS 26
 #define LCD_E  27
-#define LCD_D4 28
-#define LCD_D5 29
-#define LCD_D6 30
-#define LCD_D7 31
+#define LCD_D4 33
+#define LCD_D5 32
+#define LCD_D6 35
+#define LCD_D7 34
 LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 
 // Limites e variáveis de temperatura (container)
