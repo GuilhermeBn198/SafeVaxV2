@@ -7,17 +7,95 @@
 #include <Adafruit_PN532.h>
 #include <LiquidCrystal.h>
 
+// Para Huffman:
+#include <map>
+#include <queue>
+
+// ----- IMPLEMENTAÇÃO DO HUFFMAN -----
+struct HuffmanNode {
+  char ch;
+  int freq;
+  HuffmanNode *left;
+  HuffmanNode *right;
+  HuffmanNode(char _ch, int _freq) : ch(_ch), freq(_freq), left(NULL), right(NULL) {}
+};
+
+struct CompareNode {
+  bool operator()(HuffmanNode* const & n1, HuffmanNode* const & n2) {
+    return n1->freq > n2->freq;
+  }
+};
+
+HuffmanNode* huffmanTree = NULL;
+std::map<char, String> huffmanCodes;
+
+void buildHuffmanCodes(HuffmanNode* root, String code) {
+  if (!root) return;
+  if (root->left == NULL && root->right == NULL) {
+    huffmanCodes[root->ch] = code;
+  }
+  buildHuffmanCodes(root->left, code + "0");
+  buildHuffmanCodes(root->right, code + "1");
+}
+
+HuffmanNode* buildHuffmanTree(const String &data) {
+  std::map<char, int> freq;
+  for (int i = 0; i < data.length(); i++) {
+    freq[data[i]]++;
+  }
+  std::priority_queue<HuffmanNode*, std::vector<HuffmanNode*>, CompareNode> pq;
+  for (auto pair : freq) {
+    pq.push(new HuffmanNode(pair.first, pair.second));
+  }
+  while (pq.size() > 1) {
+    HuffmanNode* left = pq.top(); pq.pop();
+    HuffmanNode* right = pq.top(); pq.pop();
+    HuffmanNode* merged = new HuffmanNode('\0', left->freq + right->freq);
+    merged->left = left;
+    merged->right = right;
+    pq.push(merged);
+  }
+  return pq.top();
+}
+
+String huffmanCompress(const String &data) {
+  String compressed = "";
+  for (int i = 0; i < data.length(); i++) {
+    compressed += huffmanCodes[data[i]];
+  }
+  return compressed;
+}
+
+String huffmanDecompress(const String &compressed, HuffmanNode* root) {
+  String decompressed = "";
+  HuffmanNode* curr = root;
+  for (int i = 0; i < compressed.length(); i++) {
+    if (compressed[i] == '0')
+      curr = curr->left;
+    else
+      curr = curr->right;
+    if (!curr->left && !curr->right) {
+      decompressed += curr->ch;
+      curr = root;
+    }
+  }
+  return decompressed;
+}
+
+// ----- FIM DO HUFFMAN -----
+
+
 // --------------------------------------------------------------------------------
-// Definições de pinos e constantes
+// Definições de pinos e constantes do projeto
 // --------------------------------------------------------------------------------
 
-// Sensor DHT interno (container)
+// Sensor DHT interno (container) 
 #define DHT_PIN_IN 4
 #define DHT_TYPE   DHT11 
 DHT dht_in(DHT_PIN_IN, DHT_TYPE);
 
 // Sensor DHT externo (sala)
-#define DHT_PIN_EXT 12
+#define DHT_PIN_EXT 14
 DHT dht_ext(DHT_PIN_EXT, DHT_TYPE);
 
 // Sensor ultrassônico
@@ -33,39 +111,38 @@ DHT dht_ext(DHT_PIN_EXT, DHT_TYPE);
 #define SCL_PIN 22
 Adafruit_PN532 nfc(SDA_PIN, SCL_PIN);
 
-// Configuração do LCD 16x4 (utilizando interface paralela)
-// Defina os pinos conforme disponíveis no ESP32:
+// Configuração do LCD 16x4 (pinos de exemplo)
 #define LCD_RS 26
 #define LCD_E  27
-#define LCD_D4 28
-#define LCD_D5 29
-#define LCD_D6 30
-#define LCD_D7 31
+#define LCD_D4 33
+#define LCD_D5 32
+#define LCD_D6 35
+#define LCD_D7 34
 LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 
 // Limites e variáveis de temperatura (container)
 #define TEMP_MIN 2.0
 #define TEMP_MAX 8.0
-float THRESHOLD_TEMP = 9.0;       // Temperatura limiar para alerta (exemplo)
+float THRESHOLD_TEMP = 9.0;       // Limite para alerta de alta temperatura
 unsigned long tempAboveStart = 0; // Tempo em que a temperatura ficou acima do limiar
 
-// Intervalos de tempo (em milissegundos)
-const unsigned long PERIODIC_SEND_INTERVAL = 60000;    // Envio periódico a cada 1 minuto
-const unsigned long GREEN_BLINK_INTERVAL   = 5000;     // LED verde pisca a cada 5 segundos
-const unsigned long RED_BLINK_INTERVAL     = 1000;     // LED vermelho pisca a cada 1 segundo
-const unsigned long UNAUTH_WINDOW_BEFORE   = 60000;     // 1 minuto antes do evento
+// Intervalos de tempo (milissegundos)
+const unsigned long PERIODIC_SEND_INTERVAL = 60000;    // 1 minuto
+const unsigned long GREEN_BLINK_INTERVAL   = 5000;     // LED verde: 5s
+const unsigned long RED_BLINK_INTERVAL     = 1000;     // LED vermelho: 1s
+const unsigned long UNAUTH_WINDOW_BEFORE   = 60000;     // 1 minuto antes
 const unsigned long UNAUTH_WINDOW_AFTER    = 15000;     // 15 segundos depois
-const unsigned long TEMP_ALERT_DURATION    = 10000;     // 10 segundos de temperatura alta
+const unsigned long TEMP_ALERT_DURATION    = 10000;     // 10s de alta temperatura
 
-// Limite de distância para considerar a porta "fechada"
+// Distância para considerar porta fechada
 const float distancia_limite = 10.0;
 
-// MQTT: Tópicos – usamos variáveis para facilitar alteração
+// MQTT: Tópicos – configurados via variáveis para facilitar alteração
 String centro    = "centroDeVacinaXYZ";
 String container = "containerXYZ";
 String mqtt_topic = "/" + centro + "/" + container;  // Ex: /centroDeVacinaXYZ/containerXYZ
 
-// Tópico de controle para receber comandos remotos
+// Tópico de controle para receber comandos remotos (ex.: mudança de tópico)
 const char* control_topic = "esp32/control";
 
 // Configurações da rede Wi-Fi
@@ -92,33 +169,35 @@ bool doorOpen       = false;
 bool alarmState     = false;
 
 unsigned long doorOpenTime = 0;  // Tempo em que a porta foi aberta
-unsigned long lastRFIDTime = 0;  // Última leitura de RFID (milissegundos)
+unsigned long lastRFIDTime = 0;  // Última leitura de RFID
 
-// Histórico de temperaturas (últimos 10 valores do sensor interno)
+// Histórico de temperaturas (sensor interno) – últimos 10 valores
 #define TEMP_HISTORY_SIZE 10
 float tempHistory[TEMP_HISTORY_SIZE] = {0};
 int tempIndex = 0;
-bool avgAlertActive = false; // Indica se o alerta de média está ativo
+bool avgAlertActive = false; // Indica se alerta de média está ativo
 
-// --------------------------------------------------------------------------------
-// SETUP
-// --------------------------------------------------------------------------------
+// ----- Variáveis globais do Huffman -----
+// Usaremos um dicionário estático construído a partir de um sample representativo dos caracteres do payload.
+String sampleAlphabet = "{\"temperatura_interna\": 0.00,\"umidade_interna\": 0.00,\"temperatura_externa\": 0.00,\"umidade_externa\": 0.00,\"estado_porta\": \"Fechada\",\"usuario\": \"desconhecido\",\"alarm_state\": \"OK\",\"motivo\": \"periodic\"}";
+ 
+// ----- SETUP ----- 
 void setup() {
   Serial.begin(115200);
 
-  // Configura os LEDs
+  // Configura LEDs
   pinMode(LED_OK_PIN, OUTPUT);
   pinMode(LED_ALERT_PIN, OUTPUT);
 
-  // Configura os pinos do sensor ultrassônico
+  // Configura sensor ultrassônico
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
 
-  // Inicializa os sensores DHT
+  // Inicializa sensores DHT
   dht_in.begin();
   dht_ext.begin();
 
-  // Inicializa o módulo PN532 (RFID)
+  // Inicializa módulo PN532 (RFID)
   Serial.println("Inicializando PN532...");
   nfc.begin();
   uint32_t versiondata = nfc.getFirmwareVersion();
@@ -129,7 +208,7 @@ void setup() {
     Serial.println("Módulo PN532 não detectado.");
   }
 
-  // Inicializa o display LCD
+  // Inicializa display LCD
   lcd.begin(16, 4);
   lcd.clear();
   lcd.print("Iniciando...");
@@ -137,62 +216,56 @@ void setup() {
   // Conexão Wi-Fi
   setup_wifi();
 
-  // Configura o MQTT
-  espClient.setInsecure(); // Desabilita verificação de certificado para MQTT
+  // Configura MQTT
+  espClient.setInsecure();
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
+
+  // ----- Constrói a árvore Huffman e o dicionário estático -----
+  huffmanTree = buildHuffmanTree(sampleAlphabet);
+  buildHuffmanCodes(huffmanTree, "");
+  
+  Serial.println("Dicionário Huffman construído:");
+  for (auto pair : huffmanCodes) {
+    Serial.print(pair.first);
+    Serial.print(": ");
+    Serial.println(pair.second);
+  }
 }
 
-// --------------------------------------------------------------------------------
-// LOOP
-// --------------------------------------------------------------------------------
+// ----- LOOP -----
 void loop() {
   if (!client.connected()) {
     reconnect();
   }
   client.loop();
 
-  // Atualiza o histórico de temperaturas e verifica a condição de média
   atualizarTempHistory();
-
-  // Verifica o RFID
   verificarRFID();
-
-  // Atualiza o estado da porta usando o sensor ultrassônico
   atualizarDoorState();
-
-  // Checa condições de eventos (como alta temperatura)
   checarEventos();
-
-  // Atualiza o display LCD com as informações atuais
   atualizarLCD();
 
-  // Envia dados periodicamente a cada 1 minuto
   unsigned long now = millis();
   if (now - lastPeriodicSend >= PERIODIC_SEND_INTERVAL) {
     lastPeriodicSend = now;
     enviarDados("periodic");
   }
 
-  // Pisca LED verde a cada 5 segundos se não houver alerta
   if (!alarmState && (now - lastGreenBlink >= GREEN_BLINK_INTERVAL)) {
     lastGreenBlink = now;
     blinkLED(LED_OK_PIN, 100);
   }
 
-  // Se houver alerta, pisca LED vermelho a cada 1 segundo
   if (alarmState && (now - lastRedBlink >= RED_BLINK_INTERVAL)) {
     lastRedBlink = now;
     blinkLED(LED_ALERT_PIN, 100);
   }
 
-  // Atualiza os LEDs conforme o estado global
   atualizarLEDs();
 }
 
-// --------------------------------------------------------------------------------
-// FUNÇÕES AUXILIARES
-// --------------------------------------------------------------------------------
+// ----- FUNÇÕES AUXILIARES ----- 
 
 void setup_wifi() {
   delay(10);
@@ -203,7 +276,7 @@ void setup_wifi() {
     Serial.print(".");
   }
   Serial.println("\nWi-Fi conectado!");
-  Serial.print("Endereço IP: ");
+  Serial.print("IP: ");
   Serial.println(WiFi.localIP());
 }
 
@@ -212,7 +285,6 @@ void reconnect() {
     Serial.println("Reconectando ao HiveMQ...");
     if (client.connect("ESP32_Client", mqtt_username, mqtt_password)) {
       Serial.println("Conectado ao HiveMQ!");
-      // Inscreve-se no tópico de controle
       client.subscribe(control_topic);
     } else {
       delay(5000);
@@ -226,7 +298,6 @@ void blinkLED(uint8_t pin, int duration) {
   digitalWrite(pin, LOW);
 }
 
-// Atualiza o histórico de temperaturas (sensor interno) e verifica a condição de média
 void atualizarTempHistory() {
   float tempAtual = dht_in.readTemperature();
   tempHistory[tempIndex] = tempAtual;
@@ -261,7 +332,6 @@ void atualizarTempHistory() {
   }
 }
 
-// Verifica o RFID e atualiza o usuário e a última leitura
 void verificarRFID() {
   uint8_t success = nfc.inListPassiveTarget();
   if (success > 0) {
@@ -276,7 +346,6 @@ void verificarRFID() {
         usuarioAtual = novoUsuario;
         lastRFIDTime = millis();
         Serial.println("Novo usuário identificado: " + usuarioAtual);
-        // Se a porta estiver aberta, envia imediatamente
         if (doorOpen) {
           enviarDados("rfid_door");
         }
@@ -285,7 +354,6 @@ void verificarRFID() {
   }
 }
 
-// Atualiza o estado da porta usando o sensor ultrassônico
 void atualizarDoorState() {
   float distancia = medirDistancia();
   bool newDoorOpen = (distancia > distancia_limite);
@@ -294,7 +362,6 @@ void atualizarDoorState() {
     if (doorOpen) {
       doorOpenTime = millis();
       Serial.println("Porta aberta (ultrassônico).");
-      // Se não houve identificação de RFID recentemente, envia alerta
       if (millis() - lastRFIDTime > UNAUTH_WINDOW_BEFORE) {
         enviarDados("unauthorized_door");
         alarmState = true;
@@ -306,7 +373,6 @@ void atualizarDoorState() {
   }
 }
 
-// Checa condições de temperatura para disparar alerta
 void checarEventos() {
   float temperatura = dht_in.readTemperature();
   if (temperatura > THRESHOLD_TEMP) {
@@ -322,7 +388,6 @@ void checarEventos() {
   }
 }
 
-// Atualiza os LEDs conforme o estado do sistema
 void atualizarLEDs() {
   if (alarmState) {
     digitalWrite(LED_ALERT_PIN, HIGH);
@@ -333,67 +398,59 @@ void atualizarLEDs() {
   }
 }
 
-// Atualiza o display LCD com informações de temperatura interna, externa e estado da porta
 void atualizarLCD() {
-  // Lê temperaturas dos sensores
   float tempInterna = dht_in.readTemperature();
   float tempExterna = dht_ext.readTemperature();
-  
-  // Lê umidade externa (pode-se incluir umidade interna se desejado)
   float umidadeExterna = dht_ext.readHumidity();
   
-  // Atualiza o LCD
   lcd.clear();
-  // Linha 1: Exibe temperaturas
   lcd.setCursor(0, 0);
   lcd.print("Int:");
   lcd.print(tempInterna, 1);
   lcd.print("C Ext:");
   lcd.print(tempExterna, 1);
   lcd.print("C");
-  // Linha 2: Exibe status da porta
+  
   lcd.setCursor(0, 1);
   lcd.print("Porta:");
   lcd.print(doorOpen ? "Aberta" : "Fechada");
-  // Linha 3: Exibe umidade externa
+  
   lcd.setCursor(0, 2);
   lcd.print("Umid Ext:");
   lcd.print(umidadeExterna, 1);
   lcd.print("%");
-  // Linha 4: Pode ser usada para status ou outro dado
+  
   lcd.setCursor(0, 3);
   lcd.print("Status:");
   lcd.print(alarmState ? "ALERT" : "OK");
 }
 
-// Função para enviar dados via MQTT, incluindo o motivo do envio e novos dados externos
+// Função para enviar dados via MQTT com compressão Huffman
 void enviarDados(String motivo) {
-  // Leitura dos sensores internos
   float temperatura = dht_in.readTemperature();
   float umidade     = dht_in.readHumidity();
-  
-  // Leitura do sensor ultrassônico para estado da porta
   float distancia   = medirDistancia();
   String estado_porta = (distancia <= distancia_limite) ? "Fechada" : "Aberta";
   
-  // Leitura dos sensores externos
   float temperatura_ext = dht_ext.readTemperature();
   float umidade_ext     = dht_ext.readHumidity();
   
-  // Monta o payload JSON com os dados
-  String mensagem = "{";
-  mensagem += "\"temperatura_interna\": " + String(temperatura, 2) + ",";
-  mensagem += "\"umidade_interna\": " + String(umidade, 2) + ",";
-  mensagem += "\"temperatura_externa\": " + String(temperatura_ext, 2) + ",";
-  mensagem += "\"umidade_externa\": " + String(umidade_ext, 2) + ",";
-  mensagem += "\"estado_porta\": \"" + estado_porta + "\",";
-  mensagem += "\"usuario\": \"" + usuarioAtual + "\",";
-  mensagem += "\"alarm_state\": \"" + String(alarmState ? "ALERT" : "OK") + "\",";
-  mensagem += "\"motivo\": \"" + motivo + "\"";
-  mensagem += "}";
+  String payload = "{";
+  payload += "\"temperatura_interna\": " + String(temperatura, 2) + ",";
+  payload += "\"umidade_interna\": " + String(umidade, 2) + ",";
+  payload += "\"temperatura_externa\": " + String(temperatura_ext, 2) + ",";
+  payload += "\"umidade_externa\": " + String(umidade_ext, 2) + ",";
+  payload += "\"estado_porta\": \"" + estado_porta + "\",";
+  payload += "\"usuario\": \"" + usuarioAtual + "\",";
+  payload += "\"alarm_state\": \"" + String(alarmState ? "ALERT" : "OK") + "\",";
+  payload += "\"motivo\": \"" + motivo + "\"";
+  payload += "}";
   
-  if (client.publish(mqtt_topic.c_str(), mensagem.c_str())) {
-    Serial.println("Dados enviados via MQTT: " + mensagem);
+  // Comprima o payload usando Huffman
+  String compressedPayload = huffmanCompress(payload);
+  
+  if (client.publish(mqtt_topic.c_str(), compressedPayload.c_str())) {
+    Serial.println("Dados enviados (comprimidos) via MQTT: " + compressedPayload);
   } else {
     Serial.println("Falha no envio via MQTT.");
   }
@@ -410,28 +467,30 @@ float medirDistancia() {
   return (duracao * 0.034) / 2.0;
 }
 
-// Callback para mensagens MQTT recebidas
+// Callback para mensagens MQTT recebidas; descomprime se necessário
 void callback(char* topic, byte* payload, unsigned int length) {
   String message = "";
   for (unsigned int i = 0; i < length; i++) {
     message += (char)payload[i];
   }
-  Serial.println("Mensagem recebida em [" + String(topic) + "]: " + message);
-  
-  // Processa comandos do tópico de controle, ex.: alteração do tópico MQTT
+  // Se a mensagem veio do tópico de controle, a descomprime
   if (String(topic) == control_topic) {
-    // Formato esperado: "change_topic;novoCentro;novoContainer"
-    if (message.indexOf("change_topic") >= 0) {
-      int firstSep = message.indexOf(";");
-      int secondSep = message.indexOf(";", firstSep + 1);
+    String decompressed = huffmanDecompress(message, huffmanTree);
+    Serial.println("Mensagem recebida (descomprimida) em [" + String(topic) + "]: " + decompressed);
+    // Aqui você pode processar o comando, por exemplo, alterar o tópico MQTT.
+    if (decompressed.indexOf("change_topic") >= 0) {
+      int firstSep = decompressed.indexOf(";");
+      int secondSep = decompressed.indexOf(";", firstSep + 1);
       if (firstSep > 0 && secondSep > firstSep) {
-        String novoCentro = message.substring(firstSep + 1, secondSep);
-        String novoContainer = message.substring(secondSep + 1);
+        String novoCentro = decompressed.substring(firstSep + 1, secondSep);
+        String novoContainer = decompressed.substring(secondSep + 1);
         centro = novoCentro;
         container = novoContainer;
         mqtt_topic = "/" + centro + "/" + container;
         Serial.println("Novo MQTT topic: " + mqtt_topic);
       }
     }
+  } else {
+    Serial.println("Mensagem recebida em [" + String(topic) + "]: " + message);
   }
 }
