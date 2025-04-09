@@ -1,5 +1,8 @@
 
-// Para Huffman:
+#ifndef HUFFMAN_H
+#define HUFFMAN_H
+
+#include <Arduino.h>
 #include <map>
 #include <queue>
 
@@ -15,8 +18,8 @@ struct CompareNode {
   }
 };
 
-HuffmanNode* huffmanTree = NULL;
-std::map<char, String> huffmanCodes;
+extern HuffmanNode*   huffmanTree;
+extern std::map<char,String> huffmanCodes;
 
 void buildHuffmanCodes(HuffmanNode* root, String code = "") {
   if (!root) return;
@@ -28,7 +31,6 @@ void buildHuffmanCodes(HuffmanNode* root, String code = "") {
 }
 
 HuffmanNode* buildHuffmanTree(const String &data) {
-  Serial.println("[DEBUG] Construindo árvore Huffman...");
   std::map<char,int> freq;
   for (char c : data) freq[c]++;
   std::priority_queue<HuffmanNode*, std::vector<HuffmanNode*>, CompareNode> pq;
@@ -40,20 +42,16 @@ HuffmanNode* buildHuffmanTree(const String &data) {
     m->left = l; m->right = r;
     pq.push(m);
   }
-  Serial.println("[DEBUG] Árvore Huffman construída.");
   return pq.top();
 }
 
 String huffmanCompress(const String &data) {
-  Serial.println("[DEBUG] Compactando payload com Huffman...");
   String out;
   for (char c : data) out += huffmanCodes[c];
-  Serial.println("[DEBUG] Payload compactado.");
   return out;
 }
 
 String huffmanDecompress(const String &bits, HuffmanNode* root) {
-  Serial.println("[DEBUG] Descompactando payload Huffman...");
   String out;
   HuffmanNode* curr = root;
   for (char b : bits) {
@@ -63,7 +61,14 @@ String huffmanDecompress(const String &bits, HuffmanNode* root) {
       curr = root;
     }
   }
-  Serial.println("[DEBUG] Payload descompactado.");
   return out;
 }
-// ----- FIM DO HUFFMAN -----
+
+void freeHuffmanTree(HuffmanNode* node) {
+    if (!node) return;
+    freeHuffmanTree(node->left);
+    freeHuffmanTree(node->right);
+    delete node;
+  }
+
+#endif // HUFFMAN_H

@@ -14,34 +14,34 @@
 // --------------------------------------------------------------------------------
 
 // Sensor DHT interno (container)
-#define DHT_PIN_IN 4
-#define DHT_TYPE   DHT11
+const int DHT_PIN_IN = 4;
+const int DHT_TYPE =   DHT11;
 DHT dht_in(DHT_PIN_IN, DHT_TYPE);
 
 // Sensor DHT externo (sala)
-#define DHT_PIN_EXT 14
+const int DHT_PIN_EXT = 14;
 DHT dht_ext(DHT_PIN_EXT, DHT_TYPE);
 
 // Sensor ultrassônico
-#define TRIG_PIN 5
-#define ECHO_PIN 25
+const int TRIG_PIN = 5;
+const int ECHO_PIN = 25;
 
 // LEDs de status
-#define LED_OK_PIN    2   // LED Verde (status normal)
-#define LED_ALERT_PIN 15  // LED Vermelho (alerta)
+const int LED_OK_PIN = 2;   // LED Verde (status normal)
+const int LED_ALERT_PIN = 15;  // LED Vermelho (alerta)
 
 // Módulo PN532 (RFID)
-#define SDA_PIN 21
-#define SCL_PIN 22
+const int SDA_PIN = 21;
+const int SCL_PIN = 22;
 Adafruit_PN532 nfc(SDA_PIN, SCL_PIN);
 
 // Configuração do LCD 20x4
-#define LCD_RS 26
-#define LCD_E  27
-#define LCD_D4 33
-#define LCD_D5 32
-#define LCD_D6 35
-#define LCD_D7 34
+const int LCD_RS = 26;
+const int LCD_E =  27;
+const int LCD_D4 = 33;
+const int LCD_D5 = 32;
+const int LCD_D6 = 35;
+const int LCD_D7 = 34;
 LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 
 // Limites e variáveis de temperatura (container)
@@ -92,6 +92,9 @@ bool avgAlertActive = false;
 // Sample para Huffman
 String sampleAlphabet = "{\"temperatura_interna\": 0.00,\"umidade_interna\": 0.00,\"temperatura_externa\": 0.00,\"umidade_externa\": 0.00,\"estado_porta\": \"Fechada\",\"usuario\": \"desconhecido\",\"alarm_state\": \"OK\",\"motivo\": \"periodic\"}";
 
+HuffmanNode*   huffmanTree = nullptr;
+std::map<char,String> huffmanCodes;
+
 // --------------------------------------------------------------------------------
 // SETUP
 // --------------------------------------------------------------------------------
@@ -124,7 +127,7 @@ void setup() {
   }
 
   // LCD
-  lcd.begin(16, 4);
+  lcd.begin(20, 4);
   lcd.clear();
   lcd.print("Iniciando...");
   Serial.println("[DEBUG] LCD inicializado.");
@@ -139,14 +142,21 @@ void setup() {
   Serial.println("[DEBUG] MQTT configurado.");
 
   // Huffman
-  huffmanTree = buildHuffmanTree(sampleAlphabet);
+  Serial.println("[DEBUG] Construindo árvore Huffman...");
+  String alphabet = String((__FlashStringHelper*)sampleAlphabet);
+  if (huffmanTree) {
+    freeHuffmanTree(huffmanTree);
+    huffmanCodes.clear();
+  }
+  huffmanTree = buildHuffmanTree(alphabet);
   buildHuffmanCodes(huffmanTree);
   Serial.println("[DEBUG] Dicionário Huffman:");
   for (auto &p : huffmanCodes) {
     Serial.printf(" '%c' -> %s\n", p.first, p.second.c_str());
   }
+  Serial.println("[DEBUG] Árvore Huffman construída.");
 
-  Serial.println("[DEBUG] Setup concluído.");
+  Serial.println("[DEBUG] Setup concluído!!!");
 }
 
 // --------------------------------------------------------------------------------
@@ -155,7 +165,7 @@ void setup() {
 void loop() {
   if (!client.connected()) {
     Serial.println("[DEBUG] MQTT desconectado, reconectando...");
-    reconnect();
+    reconnect_mqtt();
   }
   client.loop();
 
@@ -210,6 +220,21 @@ void atualizarTempHistory() {
       enviarDados("avg_temp_stable");
     }
   }
+}
+
+void atualizarLCD() {
+  float ti = dht_in.readTemperature();
+  float te = dht_ext.readTemperature();
+  float he = dht_ext.readHumidity();
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.printf("Int:%.1fC Ext:%.1fC", ti, te);
+  lcd.setCursor(0,1);
+  lcd.printf("Porta:%s", doorOpen ? "Aberta" : "Fechada");
+  lcd.setCursor(0,2);
+  lcd.printf("Umid Ext:%.1f%%", he);
+  lcd.setCursor(0,3);
+  lcd.printf("Stat:%s", alarmState ? "ALERT" : "OK");
 }
 
 void verificarRFID() {
@@ -268,21 +293,6 @@ void checarEventos() {
   }
 }
 
-void atualizarLCD() {
-  float ti = dht_in.readTemperature();
-  float te = dht_ext.readTemperature();
-  float he = dht_ext.readHumidity();
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.printf("Int:%.1fC Ext:%.1fC", ti, te);
-  lcd.setCursor(0,1);
-  lcd.printf("Porta:%s", doorOpen ? "Aberta" : "Fechada");
-  lcd.setCursor(0,2);
-  lcd.printf("Umid Ext:%.1f%%", he);
-  lcd.setCursor(0,3);
-  lcd.printf("Stat:%s", alarmState ? "ALERT" : "OK");
-}
-
 void enviarDados(String motivo) {
   Serial.printf("[DEBUG] Montando payload para motivo: %s\n", motivo.c_str());
   float ti = dht_in.readTemperature();
@@ -302,7 +312,9 @@ void enviarDados(String motivo) {
   payload += "\"motivo\":\""           + motivo + "\"}";
   Serial.println("[DEBUG] Payload JSON: " + payload);
 
+  Serial.println("[DEBUG] Compactando payload com Huffman...");
   String compressed = huffmanCompress(payload);
+  Serial.println("[DEBUG] Payload compactado.");
   Serial.println("[DEBUG] Payload Huffman: " + compressed);
 
   bool ok = client.publish(mqtt_topic.c_str(), compressed.c_str());
