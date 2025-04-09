@@ -90,7 +90,7 @@ String aes_decrypt(const String &b64) {
 
 // ======== HARDWARE CONFIG ========
 #define DHT_PIN_IN   4
-#define DHT_PIN_EXT  12
+#define DHT_PIN_EXT  14
 #define DHT_TYPE     DHT11
 DHT dht_in(DHT_PIN_IN,DHT_TYPE), dht_ext(DHT_PIN_EXT,DHT_TYPE);
 
@@ -106,10 +106,10 @@ Adafruit_PN532 nfc(SDA_PIN,SCL_PIN);
 
 #define LCD_RS 26
 #define LCD_E  27
-#define LCD_D4 14
-#define LCD_D5 12
-#define LCD_D6 13
-#define LCD_D7 15
+#define LCD_D4 33
+#define LCD_D5 32
+#define LCD_D6 35
+#define LCD_D7 34
 LiquidCrystal lcd(LCD_RS,LCD_E,LCD_D4,LCD_D5,LCD_D6,LCD_D7);
 
 // TIMING
