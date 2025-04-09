@@ -6,76 +6,8 @@
 #include <time.h>
 #include <Adafruit_PN532.h>
 #include <LiquidCrystal.h>
-
-// Para Huffman:
-#include <map>
-#include <queue>
-
-// ----- IMPLEMENTAÇÃO DO HUFFMAN -----
-struct HuffmanNode {
-  char ch; int freq;
-  HuffmanNode *left, *right;
-  HuffmanNode(char _ch, int _freq) : ch(_ch), freq(_freq), left(NULL), right(NULL) {}
-};
-struct CompareNode {
-  bool operator()(HuffmanNode* const & n1, HuffmanNode* const & n2) {
-    return n1->freq > n2->freq;
-  }
-};
-
-HuffmanNode* huffmanTree = NULL;
-std::map<char, String> huffmanCodes;
-
-void buildHuffmanCodes(HuffmanNode* root, String code = "") {
-  if (!root) return;
-  if (!root->left && !root->right) {
-    huffmanCodes[root->ch] = code;
-  }
-  buildHuffmanCodes(root->left,  code + "0");
-  buildHuffmanCodes(root->right, code + "1");
-}
-
-HuffmanNode* buildHuffmanTree(const String &data) {
-  Serial.println("[DEBUG] Construindo árvore Huffman...");
-  std::map<char,int> freq;
-  for (char c : data) freq[c]++;
-  std::priority_queue<HuffmanNode*, std::vector<HuffmanNode*>, CompareNode> pq;
-  for (auto &p : freq) pq.push(new HuffmanNode(p.first, p.second));
-  while (pq.size() > 1) {
-    HuffmanNode* l = pq.top(); pq.pop();
-    HuffmanNode* r = pq.top(); pq.pop();
-    HuffmanNode* m = new HuffmanNode('\0', l->freq + r->freq);
-    m->left = l; m->right = r;
-    pq.push(m);
-  }
-  Serial.println("[DEBUG] Árvore Huffman construída.");
-  return pq.top();
-}
-
-String huffmanCompress(const String &data) {
-  Serial.println("[DEBUG] Compactando payload com Huffman...");
-  String out;
-  for (char c : data) out += huffmanCodes[c];
-  Serial.println("[DEBUG] Payload compactado.");
-  return out;
-}
-
-String huffmanDecompress(const String &bits, HuffmanNode* root) {
-  Serial.println("[DEBUG] Descompactando payload Huffman...");
-  String out;
-  HuffmanNode* curr = root;
-  for (char b : bits) {
-    curr = (b == '0') ? curr->left : curr->right;
-    if (!curr->left && !curr->right) {
-      out += curr->ch;
-      curr = root;
-    }
-  }
-  Serial.println("[DEBUG] Payload descompactado.");
-  return out;
-}
-// ----- FIM DO HUFFMAN -----
-
+#include "huffman.h"
+#include "tools.h"
 
 // --------------------------------------------------------------------------------
 // Definições de pinos e constantes do projeto
@@ -258,36 +190,6 @@ void loop() {
 // FUNÇÕES AUXILIARES
 // --------------------------------------------------------------------------------
 
-void setup_wifi() {
-  Serial.print("[DEBUG] Conectando ao Wi-Fi ");
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.printf("\n[DEBUG] Wi-Fi conectado: %s\n", WiFi.localIP().toString().c_str());
-}
-
-void reconnect() {
-  while (!client.connected()) {
-    Serial.println("[DEBUG] Tentando conexão MQTT...");
-    if (client.connect("ESP32_Client", mqtt_username, mqtt_password)) {
-      Serial.println("[DEBUG] Conectado ao MQTT.");
-      client.subscribe(control_topic);
-      Serial.printf("[DEBUG] Inscrito em: %s\n", control_topic);
-    } else {
-      Serial.printf("[ERROR] Falha MQTT, rc=%d. Tentando em 5s\n", client.state());
-      delay(5000);
-    }
-  }
-}
-
-void blinkLED(uint8_t pin, int duration) {
-  digitalWrite(pin, HIGH);
-  delay(duration);
-  digitalWrite(pin, LOW);
-}
-
 void atualizarTempHistory() {
   float t = dht_in.readTemperature();
   tempHistory[tempIndex] = t;
@@ -366,11 +268,6 @@ void checarEventos() {
   }
 }
 
-void atualizarLEDs() {
-  digitalWrite(LED_ALERT_PIN, alarmState);
-  digitalWrite(LED_OK_PIN, !alarmState);
-}
-
 void atualizarLCD() {
   float ti = dht_in.readTemperature();
   float te = dht_ext.readTemperature();
@@ -410,14 +307,6 @@ void enviarDados(String motivo) {
 
   bool ok = client.publish(mqtt_topic.c_str(), compressed.c_str());
   Serial.printf("[DEBUG] Publish em %s %s\n", mqtt_topic.c_str(), ok ? "SUCESSO" : "FALHA");
-}
-
-float medirDistancia() {
-  digitalWrite(TRIG_PIN, LOW); delayMicroseconds(2);
-  digitalWrite(TRIG_PIN, HIGH); delayMicroseconds(10);
-  digitalWrite(TRIG_PIN, LOW);
-  long dur = pulseIn(ECHO_PIN, HIGH);
-  return (dur * 0.034) / 2.0;
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
