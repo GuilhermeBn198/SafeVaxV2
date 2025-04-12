@@ -6,8 +6,74 @@
 #include <time.h>
 #include <Adafruit_PN532.h>
 #include <LiquidCrystal.h>
-#include "huffman.h"
-#include "tools.h"
+#include <Arduino.h>
+#include <map>
+#include <queue>
+
+// ----- IMPLEMENTAÇÃO DO HUFFMAN -----
+struct HuffmanNode {
+  char ch; int freq;
+  HuffmanNode *left, *right;
+  HuffmanNode(char _ch, int _freq) : ch(_ch), freq(_freq), left(NULL), right(NULL) {}
+};
+struct CompareNode {
+  bool operator()(HuffmanNode* const & n1, HuffmanNode* const & n2) {
+    return n1->freq > n2->freq;
+  }
+};
+
+HuffmanNode*   huffmanTree;
+std::map<char,String> huffmanCodes;
+
+void buildHuffmanCodes(HuffmanNode* root, String code = "") {
+  if (!root) return;
+  if (!root->left && !root->right) {
+    huffmanCodes[root->ch] = code;
+  }
+  buildHuffmanCodes(root->left,  code + "0");
+  buildHuffmanCodes(root->right, code + "1");
+}
+
+HuffmanNode* buildHuffmanTree(const String &data) {
+  std::map<char,int> freq;
+  for (char c : data) freq[c]++;
+  std::priority_queue<HuffmanNode*, std::vector<HuffmanNode*>, CompareNode> pq;
+  for (auto &p : freq) pq.push(new HuffmanNode(p.first, p.second));
+  while (pq.size() > 1) {
+    HuffmanNode* l = pq.top(); pq.pop();
+    HuffmanNode* r = pq.top(); pq.pop();
+    HuffmanNode* m = new HuffmanNode('\0', l->freq + r->freq);
+    m->left = l; m->right = r;
+    pq.push(m);
+  }
+  return pq.top();
+}
+
+String huffmanCompress(const String &data) {
+  String out;
+  for (char c : data) out += huffmanCodes[c];
+  return out;
+}
+
+String huffmanDecompress(const String &bits, HuffmanNode* root) {
+  String out;
+  HuffmanNode* curr = root;
+  for (char b : bits) {
+    curr = (b == '0') ? curr->left : curr->right;
+    if (!curr->left && !curr->right) {
+      out += curr->ch;
+      curr = root;
+    }
+  }
+  return out;
+}
+
+void freeHuffmanTree(HuffmanNode* node) {
+    if (!node) return;
+    freeHuffmanTree(node->left);
+    freeHuffmanTree(node->right);
+    delete node;
+  }
 
 // --------------------------------------------------------------------------------
 // Definições de pinos e constantes do projeto
@@ -92,9 +158,6 @@ bool avgAlertActive = false;
 // Sample para Huffman
 String sampleAlphabet = "{\"temperatura_interna\": 0.00,\"umidade_interna\": 0.00,\"temperatura_externa\": 0.00,\"umidade_externa\": 0.00,\"estado_porta\": \"Fechada\",\"usuario\": \"desconhecido\",\"alarm_state\": \"OK\",\"motivo\": \"periodic\"}";
 
-HuffmanNode*   huffmanTree = nullptr;
-std::map<char,String> huffmanCodes;
-
 // --------------------------------------------------------------------------------
 // SETUP
 // --------------------------------------------------------------------------------
@@ -143,12 +206,11 @@ void setup() {
 
   // Huffman
   Serial.println("[DEBUG] Construindo árvore Huffman...");
-  String alphabet = String((__FlashStringHelper*)sampleAlphabet);
   if (huffmanTree) {
     freeHuffmanTree(huffmanTree);
     huffmanCodes.clear();
   }
-  huffmanTree = buildHuffmanTree(alphabet);
+  huffmanTree = buildHuffmanTree(sampleAlphabet);
   buildHuffmanCodes(huffmanTree);
   Serial.println("[DEBUG] Dicionário Huffman:");
   for (auto &p : huffmanCodes) {
@@ -199,6 +261,54 @@ void loop() {
 // --------------------------------------------------------------------------------
 // FUNÇÕES AUXILIARES
 // --------------------------------------------------------------------------------
+
+// Conecta ao Wi‑Fi e imprime debug
+static void setup_wifi() {
+  Serial.print("[DEBUG] Conectando ao Wi-Fi ");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.printf("\n[DEBUG] Wi-Fi conectado: %s\n", WiFi.localIP().toString().c_str());
+}
+
+// Reconecta ao broker MQTT
+static void reconnect_mqtt() {
+  while (!client.connected()) {
+    Serial.println("[DEBUG] Tentando conexão MQTT...");
+    if (client.connect("ESP32_Client", mqtt_username, mqtt_password)) {
+      Serial.println("[DEBUG] Conectado ao MQTT.");
+      client.subscribe(control_topic);
+      Serial.printf("[DEBUG] Inscrito em: %s\n", control_topic);
+    } else {
+      Serial.printf("[ERROR] Falha MQTT, rc=%d. Tentando em 5s\n", client.state());
+      delay(5000);
+    }
+  }
+}
+
+// Pisca um LED por `duration` ms
+static void blinkLED(uint8_t pin, int duration) {
+  digitalWrite(pin, HIGH);
+  delay(duration);
+  digitalWrite(pin, LOW);
+}
+
+// Atualiza os LEDs de status
+static void atualizarLEDs() {
+  digitalWrite(LED_ALERT_PIN, alarmState ? HIGH : LOW);
+  digitalWrite(LED_OK_PIN,    alarmState ? LOW  : HIGH);
+}
+
+// Mede distância ultrassônica
+static float medirDistancia() {
+  digitalWrite(TRIG_PIN, LOW);  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH); delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  long dur = pulseIn(ECHO_PIN, HIGH);
+  return (dur * 0.034) / 2.0;
+}
 
 void atualizarTempHistory() {
   float t = dht_in.readTemperature();
