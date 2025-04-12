@@ -249,7 +249,7 @@ void loop() {
   if (!alarmState && now - lastGreenBlink >= GREEN_BLINK_INTERVAL) {
     lastGreenBlink = now;
     blinkLED(LED_OK_PIN, 100);
-    Serial.println("[DEBUG] Blink verde.");
+    // Serial.println("[DEBUG] Blink verde.");
   }
   if (alarmState && now - lastRedBlink >= RED_BLINK_INTERVAL) {
     lastRedBlink = now;
@@ -314,7 +314,7 @@ void atualizarTempHistory() {
   float t = dht_in.readTemperature();
   tempHistory[tempIndex] = t;
   tempIndex = (tempIndex + 1) % TEMP_HISTORY_SIZE;
-  Serial.printf("[DEBUG] Temp interna lida: %.2f°C\n", t);
+  // Serial.printf("[DEBUG] Temp interna lida: %.2f°C\n", t);
 
   if (TEMP_HISTORY_SIZE >= 10) {
     float s5 = t, s10 = t;
@@ -370,7 +370,7 @@ void verificarRFID() {
 void atualizarDoorState() {
   float dist = medirDistancia();
   bool nowOpen = dist > distancia_limite;
-  Serial.printf("[DEBUG] Distância lida: %.2f cm\n", dist);
+  // Serial.printf("[DEBUG] Distância lida: %.2f cm\n", dist);
   if (nowOpen != doorOpen) {
     doorOpen = nowOpen;
     if (doorOpen) {
