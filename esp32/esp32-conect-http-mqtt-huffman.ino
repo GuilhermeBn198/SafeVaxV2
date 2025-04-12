@@ -85,12 +85,12 @@ const int DHT_TYPE =   DHT11;
 DHT dht_in(DHT_PIN_IN, DHT_TYPE);
 
 // Sensor DHT externo (sala)
-const int DHT_PIN_EXT = 14;
+const int DHT_PIN_EXT = 18;
 DHT dht_ext(DHT_PIN_EXT, DHT_TYPE);
 
 // Sensor ultrassônico
 const int TRIG_PIN = 5;
-const int ECHO_PIN = 25;
+const int ECHO_PIN = 23;
 
 // LEDs de status
 const int LED_OK_PIN = 2;   // LED Verde (status normal)
@@ -106,12 +106,12 @@ const int LCD_RS = 26;
 const int LCD_E =  27;
 const int LCD_D4 = 33;
 const int LCD_D5 = 32;
-const int LCD_D6 = 35;
-const int LCD_D7 = 34;
+const int LCD_D6 = 25;
+const int LCD_D7 = 13;
 LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 
 // Limites e variáveis de temperatura (container)
-float THRESHOLD_TEMP = 9.0;
+float THRESHOLD_TEMP = 25.5;
 unsigned long tempAboveStart = 0;
 
 // Intervalos de tempo (ms)
@@ -122,7 +122,7 @@ const unsigned long UNAUTH_WINDOW_BEFORE   = 60000;
 const unsigned long TEMP_ALERT_DURATION    = 10000;
 
 // Distância para considerar porta fechada
-const float distancia_limite = 10.0;
+const float distancia_limite = 7.0;
 
 // MQTT: tópicos dinâmicos
 String centro    = "centroDeVacinaXYZ";
@@ -135,10 +135,10 @@ const char* control_topic = "esp32/control";
 // Wi-Fi e MQTT
 const char* ssid     = "Starlink_CIT";
 const char* password = "Ufrr@2024Cit";
-const char* mqtt_server   = "cd8839ea5ec5423da3aaa6691e5183a5.s1.eu.hivemq.cloud";
+const char* mqtt_server   = "07356c1b41e34d65a6152a202151c24d.s1.eu.hivemq.cloud";
 const int   mqtt_port     = 8883;
-const char* mqtt_username = "hivemq.webclient.1734636778463";
-const char* mqtt_password = "EU<pO3F7x?S%wLk4#5ib";
+const char* mqtt_username = "hivemq.webclient.1744472320531";
+const char* mqtt_password = "QOwsih0.7!tV%L6gD1B>";
 
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
