@@ -24,7 +24,6 @@ O SafeVax automatiza o monitoramento dos refrigeradores de vacinas através de:
 
 ### Melhorias e Funcionalidades Adicionais
 
-- **Aplicativo Mobile Flutter:** App que se inscreve nos tópicos MQTT do SafeVax, descriptografa e descomprime os payloads para exibir dados e alertas.  
 - **Dashboard Interativo com Streamlit:** Consome as rotas HTTP do servidor Flask para visualização em tempo real e histórica.  
 - **Segurança de Comunicação:**  
   - **HiveMQ TLS** para canal MQTT seguro.  
