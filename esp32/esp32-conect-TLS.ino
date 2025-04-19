@@ -1,3 +1,4 @@
+
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
@@ -16,92 +17,22 @@ const char* hivemq_root_ca = \
 "MIIFBjCCAu6gAwIBAgIRAIp9PhPWLzDvI4a9KQdrNPgwDQYJKoZIhvcNAQELBQAwTzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2VhcmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMjQwMzEzMDAwMDAwWhcNMjcwMzEyMjM1OTU5WjAzMQswCQYDVQQGEwJVUzEWMBQGA1UEChMNTGV0J3MgRW5jcnlwdDEMMAoGA1UEAxMDUjExMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuoe8XBsAOcvKCs3UZxD5ATylTqVhyybKUvsVAbe5KPUoHu0nsyQYOWcJDAjs4DqwO3cOvfPlOVRBDE6uQdaZdN5R2+97/1i9qLcT9t4x1fJyyXJqC4N0lZxGAGQUmfOx2SLZzaiSqhwmej/+71gFewiVgdtxD4774zEJuwm+UE1fj5F2PVqdnoPy6cRms+EGZkNIGIBloDcYmpuEMpexsr3E+BUAnSeI++JjF5ZsmydnS8TbKF5pwnnwSVzgJFDhxLyhBax7QG0AtMJBP6dYuC/FXJuluwme8f7rsIU5/agK70XEeOtlKsLPXzze41xNG/cLJyuqC0J3U095ah2H2QIDAQABo4H4MIH1MA4GA1UdDwEB/wQEAwIBhjAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwEwEgYDVR0TAQH/BAgwBgEB/wIBADAdBgNVHQ4EFgQUxc9GpOr0w8B6bJXELbBeki8m47kwHwYDVR0jBBgwFoAUebRZ5nu25eQBc4AIiMgaWPbpm24wMgYIKwYBBQUHAQEEJjAkMCIGCCsGAQUFBzAChhZodHRwOi8veDEuaS5sZW5jci5vcmcvMBMGA1UdIAQMMAowCAYGZ4EMAQIBMCcGA1UdHwQgMB4wHKAaoBiGFmh0dHA6Ly94MS5jLmxlbmNyLm9yZy8wDQYJKoZIhvcNAQELBQADggIBAE7iiV0KAxyQOND1H/lxXPjDj7I3iHpvsCUf7b632IYGjukJhM1yv4Hz/MrPU0jtvfZpQtSlET41yBOykh0FX+ou1Nj4ScOt9ZmWnO8m2OG0JAtIIE3801S0qcYhyOE2G/93ZCkXufBL713qzXnQv5C/viOykNpKqUgxdKlEC+Hi9i2DcaR1e9KUwQUZRhy5j/PEdEglKg3l9dtD4tuTm7kZtB8v32oOjzHTYw+7KdzdZiw/sBtnUfhBPORNuay4pJxmY/WrhSMdzFO2q3Gu3MUBcdo27goYKjL9CTF8j/Zz55yctUoVaneCWs/ajUX+HypkBTA+c8LGDLnWO2NKq0YD/pnARkAnYGPfUDoHR9gVSp/qRx+ZWghiDLZsMwhN1zjtSC0uBWiugF3vTNzYIEFfaPG7Ws3jDrAMMYebQ95JQ+HIBD/RPBuHRTBpqKlyDnkSHDHYPiNX3adPoPAcgdF3H2/W0rmoswMWgTlLn1Wu0mrks7/qpdWfS6PJ1jty80r2VKsM/Dj3YIDfbjXKdaFU5C+8bhfJGqU3taKauuz0wHVGT3eo6FlWkWYtbt4pgdamlwVeZEW+LM7qZEJEsMNPrfC03APKmZsJgpWCDWOKZvkZcvjVuYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA" \
 "-----END CERTIFICATE-----\n";
 
-// ----- IMPLEMENTAÇÃO DO HUFFMAN -----
-struct HuffmanNode {
-  char ch;
-  int freq;
-  HuffmanNode *left, *right;
-  HuffmanNode(char _ch, int _freq) : ch(_ch), freq(_freq), left(NULL), right(NULL) {}
+// --- Huffman Estático ---
+const String HUFFMAN_DICT_VERSION = "v1";
+const std::map<char, String> huffmanCodes = {
+  {'"', "000"},    {':', "0010"},   {',', "0011"},   {'a', "0100"},
+  {'e', "0101"},   {'i', "0110"},   {'o', "0111"},   {'r', "1000"},
+  {'t', "1001"},   {'m', "1010"},   {'u', "1011"},   {'d', "1100"},
+  {'p', "11010"},  {'s', "11011"},  {'_', "11100"},  {'C', "11101"},
+  {'F', "11110"},  {'A', "11111"},  {'L', "00000"},  {'R', "00001"},
+  {'D', "00010"},  {'0', "00011"},  {'1', "00100"},  {'2', "00101"},
+  {'3', "00110"},  {'4', "00111"},  {'5', "01000"},  {'6', "01001"},
+  {'7', "01010"},  {'8', "01011"},  {'9', "01100"},  {'.', "01101"},
+  {'E', "01110"},  {'c', "01111"},  {'n', "10000"},  {'h', "10001"},
+  {'v', "10010"},  {'g', "10011"},  {'l', "10100"},  {'b', "10101"},
+  {'k', "10110"},  {'O', "10111"},  {'K', "11000"},  {'I', "11001"},
+  {'T', "110001"}, {'U', "110010"}, {'M', "110011"}, {' ', "110100"}
 };
-struct CompareNode {
-  bool operator()(HuffmanNode* const & n1, HuffmanNode* const & n2) {
-    return n1->freq > n2->freq;
-  }
-};
-
-HuffmanNode* huffmanTree = NULL;
-std::map<char, String> huffmanCodes;
-
-void buildHuffmanCodes(HuffmanNode* root, String code = "") {
-  if (!root) return;
-  if (!root->left && !root->right) {
-    huffmanCodes[root->ch] = code;
-  }
-  buildHuffmanCodes(root->left,  code + "0");
-  buildHuffmanCodes(root->right, code + "1");
-}
-
-HuffmanNode* buildHuffmanTree(const String &data) {
-  std::map<char,int> freq;
-  for (char c : data) freq[c]++;
-  std::priority_queue<HuffmanNode*, std::vector<HuffmanNode*>, CompareNode> pq;
-  for (auto &p : freq) pq.push(new HuffmanNode(p.first, p.second));
-  while (pq.size() > 1) {
-    HuffmanNode* l = pq.top(); pq.pop();
-    HuffmanNode* r = pq.top(); pq.pop();
-    HuffmanNode* m = new HuffmanNode('\0', l->freq + r->freq);
-    m->left = l; m->right = r;
-    pq.push(m);
-  }
-  return pq.top();
-}
-
-String huffmanCompress(const String &data) {
-  String out;
-  for (char c : data) out += huffmanCodes[c];
-  return out;
-}
-
-String huffmanDecompress(const String &bits, HuffmanNode* root) {
-  String out;
-  HuffmanNode* curr = root;
-  for (char b : bits) {
-    curr = (b == '0') ? curr->left : curr->right;
-    if (!curr->left && !curr->right) {
-      out += curr->ch;
-      curr = root;
-    }
-  }
-  return out;
-}
-
-void freeHuffmanTree(HuffmanNode* node) {
-  if (!node) return;
-  freeHuffmanTree(node->left);
-  freeHuffmanTree(node->right);
-  delete node;
-}
-
-HuffmanNode* buildHuffmanTreeFromCodes(std::map<char, String> &codes) {
-  HuffmanNode* root = new HuffmanNode('\0', 0);
-  for (auto &entry : codes) {
-    char key = entry.first;
-    String code = entry.second;
-    HuffmanNode* current = root;
-    for (int i = 0; i < code.length(); i++) {
-      char bit = code.charAt(i);
-      if (bit == '0') {
-        if (!current->left) current->left = new HuffmanNode('\0', 0);
-        current = current->left;
-      } else {
-        if (!current->right) current->right = new HuffmanNode('\0', 0);
-        current = current->right;
-      }
-    }
-    current->ch = key;
-  }
-  return root;
-}
 
 // --------------------------------------------------------------------------------
 // PINOS E CONSTANTES
@@ -155,6 +86,70 @@ int tempIndex = 0;
 bool avgAlertActive = false;
 
 // --------------------------------------------------------------------------------
+// FUNÇÕES HUFFMAN
+// --------------------------------------------------------------------------------
+String huffmanCompress(const String &data) {
+  String compressed;
+  for (char c : data) {
+    auto it = huffmanCodes.find(c);
+    if (it != huffmanCodes.end()) {
+      compressed += it->second;
+    } else {
+      compressed += "110101"; // Caractere desconhecido (espaço como fallback)
+    }
+  }
+  return compressed;
+}
+
+String binaryToBase64(const String &binary) {
+  const char* base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  String result;
+  
+  // Cria uma cópia modificável do input
+  String paddedBinary = binary;
+  int len = paddedBinary.length();
+  
+  // Preencher com zeros se necessário
+  while (len % 6 != 0) {
+    paddedBinary += '0';
+    len++;
+  }
+
+  int i = 0;
+  while (i < len) {
+    int val = 0;
+    for (int j = 0; j < 6; j++) {
+      val <<= 1;
+      if (paddedBinary[i+j] == '1') val |= 1;
+    }
+    i += 6;
+    
+    result += base64_chars[val];
+  }
+
+  // Ajustar padding
+  int pad = (6 - (binary.length() % 6)) % 6;
+  for (int p = 0; p < pad/2; p++) {
+    result += '=';
+  }
+  
+  return result;
+}
+
+
+void testHuffman() {
+  String test = "{\"temperatura_interna\":25.50}";
+  String compressed = huffmanCompress(test);
+  String encoded = binaryToBase64(compressed);
+  
+  Serial.println("\n[TESTE] Original: " + test);
+  Serial.println("[TESTE] Compactado: " + compressed);
+  Serial.println("[TESTE] Base64: " + encoded);
+  Serial.println("[TESTE] Tamanho original: " + String(test.length()) + " bytes");
+  Serial.println("[TESTE] Tamanho compactado: " + String(encoded.length()) + " bytes\n");
+}
+
+// --------------------------------------------------------------------------------
 // SETUP
 // --------------------------------------------------------------------------------
 void setup() {
@@ -173,8 +168,12 @@ void setup() {
   Serial.println("[DEBUG] Inicializando PN532...");
   nfc.begin();
   uint32_t version = nfc.getFirmwareVersion();
-  if (version) { nfc.SAMConfig(); Serial.println("[DEBUG] PN532 OK."); }
-  else { Serial.println("[ERROR] PN532 não detectado!"); }
+  if (version) { 
+    nfc.SAMConfig(); 
+    Serial.println("[DEBUG] PN532 OK."); 
+  } else { 
+    Serial.println("[ERROR] PN532 não detectado!"); 
+  }
 
   lcd.begin(20, 4);
   lcd.clear();
@@ -183,12 +182,12 @@ void setup() {
 
   setup_wifi();
 
-  // Configuração TLS/MQTT
   espClient.setCACert(hivemq_root_ca);
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
   Serial.println("[DEBUG] MQTT TLS configurado.");
 
+  testHuffman();
   Serial.println("[DEBUG] Setup concluído!!!");
 }
 
@@ -212,12 +211,15 @@ void loop() {
   }
 
   if (!alarmState && now - lastGreenBlink >= GREEN_BLINK_INTERVAL) {
-    lastGreenBlink = now; blinkLED(LED_OK_PIN, 100);
+    lastGreenBlink = now; 
+    blinkLED(LED_OK_PIN, 100);
   }
   if (alarmState && now - lastRedBlink >= RED_BLINK_INTERVAL) {
-    lastRedBlink = now; blinkLED(LED_ALERT_PIN, 100);
+    lastRedBlink = now; 
+    blinkLED(LED_ALERT_PIN, 100);
   }
 }
+
 
 // --------------------------------------------------------------------------------
 // FUNÇÕES AUXILIARES
@@ -237,11 +239,11 @@ static void setup_wifi() {
 // Reconecta ao broker MQTT
 static void reconnect_mqtt() {
   while (!client.connected()) {
-    Serial.println("[DEBUG] Tentando conexão MQTT...");
+    // Serial.println("[DEBUG] Tentando conexão MQTT...");
     if (client.connect("ESP32_Client", mqtt_username, mqtt_password)) {
-      Serial.println("[DEBUG] Conectado ao MQTT.");
+      // Serial.println("[DEBUG] Conectado ao MQTT.");
       client.subscribe(control_topic);
-      Serial.printf("[DEBUG] Inscrito em: %s\n", control_topic);
+      // Serial.printf("[DEBUG] Inscrito em: %s\n", control_topic);
     } else {
       Serial.printf("[ERROR] Falha MQTT, rc=%d. Tentando em 5s\n", client.state());
       delay(5000);
@@ -366,15 +368,17 @@ void checarEventos() {
   }
 }
 
-// Função que envia os dados pelo MQTT com payload compactado via Huffman
 void enviarDados(String motivo) {
   Serial.printf("[DEBUG] Montando payload para motivo: %s\n", motivo.c_str());
+  
+  // Ler dados dos sensores
   float ti = dht_in.readTemperature();
   float hi = dht_in.readHumidity();
   float te = dht_ext.readTemperature();
   float he = dht_ext.readHumidity();
   String portState = (medirDistancia() <= distancia_limite) ? "Fechada" : "Aberta";
 
+  // Construir payload JSON original
   String payload = "{";
   payload += "\"temperatura_interna\":" + String(ti, 2) + ",";
   payload += "\"umidade_interna\":"   + String(hi, 2) + ",";
@@ -384,91 +388,41 @@ void enviarDados(String motivo) {
   payload += "\"usuario\":\""          + usuarioAtual + "\",";
   payload += "\"alarm_state\":\""      + String(alarmState ? "ALERT" : "OK") + "\",";
   payload += "\"motivo\":\""           + motivo + "\"}";
-  Serial.println("[DEBUG] Payload JSON: " + payload);
 
-  // --- Construção dinâmica do dicionário Huffman ---
-  // Libera árvore e dicionário anteriores (se houver)
-  if (huffmanTree) {
-    freeHuffmanTree(huffmanTree);
-    huffmanCodes.clear();
-  }
-  // Constrói a árvore com base no payload atual
-  huffmanTree = buildHuffmanTree(payload);
-  buildHuffmanCodes(huffmanTree);
-
-  // Serializa o dicionário em um header (formato: cada par 'ch:code' separado por ;)
-  String header = "";
-  for (auto &p : huffmanCodes) {
-    header += p.first;
-    header += ":";
-    header += p.second;
-    header += ";";
-  }
-  // Remove o último ponto e vírgula
-  if (header.endsWith(";")) {
-    header.remove(header.length()-1);
-  }
-
-  // Comprimi o payload usando o dicionário dinâmico
+  // Compactar e codificar
   String compressed = huffmanCompress(payload);
+  String encoded = binaryToBase64(compressed);
+  
+  // Construir payload final
+  String finalPayload = "{";
+  finalPayload += "\"huffman\":\"" + encoded + "\",";
+  finalPayload += "\"dict\":\"" + HUFFMAN_DICT_VERSION + "\",";
+  finalPayload += "\"length\":" + String(compressed.length()) + "}";
 
-  // Junta header e payload compactado usando "||" como delimitador
-  String finalPayload = header + "||" + compressed;
-  Serial.println("[DEBUG] Payload final (header||dados compactados): " + finalPayload);
-
+  // Publicar
   bool ok = client.publish(mqtt_topic.c_str(), finalPayload.c_str());
-  Serial.printf("[DEBUG] Publish em %s %s\n", mqtt_topic.c_str(), ok ? "SUCESSO" : "FALHA");
+  
+  // Logs detalhados
+  Serial.println("Payload original: " + payload);
+  Serial.println("Tamanho original: " + String(payload.length()) + " bytes");
+  Serial.println("Payload compactado: " + finalPayload);
+  Serial.println("Tamanho compactado: " + String(finalPayload.length()) + " bytes");
+  Serial.printf("[DEBUG] Publicação %s\n", ok ? "OK" : "FALHA");
 }
 
-// Callback para mensagens MQTT recebidas
+// Callback modificado para lidar com possíveis comandos
 void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.printf("[DEBUG] Mensagem recebida em [%s], tamanho %u\n", topic, length);
   String msg;
   for (unsigned int i = 0; i < length; i++) {
     msg += (char)payload[i];
   }
-  Serial.println("[DEBUG] Mensagem bruta: " + msg);
-
-  // Se a mensagem contiver o delimitador "||", trata como mensagem compactada com header
-  int delimiterIndex = msg.indexOf("||");
-  if (delimiterIndex != -1) {
-    String header = msg.substring(0, delimiterIndex);
-    String compressed = msg.substring(delimiterIndex + 2);
-
-    // Reconstrói o dicionário a partir do header
-    std::map<char, String> dynamicCodes;
-    int start = 0;
-    while (start < header.length()) {
-      int colonIndex = header.indexOf(':', start);
-      int semicolonIndex = header.indexOf(';', start);
-      if (colonIndex == -1) break;
-      // Se não encontrar ponto e vírgula, pega até o final
-      if (semicolonIndex == -1) {
-        semicolonIndex = header.length();
-      }
-      char key = header.charAt(start);
-      String code = header.substring(colonIndex + 1, semicolonIndex);
-      dynamicCodes[key] = code;
-      start = semicolonIndex + 1;
-    }
-    // Constrói a árvore a partir do dicionário dinâmico
-    HuffmanNode* dynamicTree = buildHuffmanTreeFromCodes(dynamicCodes);
-    String decompressed = huffmanDecompress(compressed, dynamicTree);
-    Serial.println("[DEBUG] Mensagem descompactada: " + decompressed);
-    freeHuffmanTree(dynamicTree);
-
-    // Caso a mensagem descompactada seja de controle, processa o comando
-    if (decompressed.startsWith("change_topic")) {
-      int a = decompressed.indexOf(';');
-      int b = decompressed.indexOf(';', a + 1);
-      centro    = decompressed.substring(a+1, b);
-      container = decompressed.substring(b+1);
-      mqtt_topic = "/" + centro + "/" + container;
-      Serial.println("[DEBUG] Tópico alterado para: " + mqtt_topic);
-    }
-  }
-  else {
-    // Se não houver delimitador, trata como mensagem não compactada
-    Serial.println("[DEBUG] Mensagem sem compactação: " + msg);
+  
+  Serial.println("[DEBUG] Mensagem recebida: " + msg);
+  
+  // Comando para atualizar threshold
+  if (msg.startsWith("SET_THRESHOLD:")) {
+    float newThreshold = msg.substring(14).toFloat();
+    THRESHOLD_TEMP = newThreshold;
+    Serial.println("[DEBUG] Novo threshold definido: " + String(THRESHOLD_TEMP));
   }
 }
