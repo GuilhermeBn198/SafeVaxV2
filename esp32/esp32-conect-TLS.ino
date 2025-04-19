@@ -10,16 +10,19 @@
 #include <map>
 #include <queue>
 
+// ----- CERTIFICADOS TLS -----
+const char* hivemq_root_ca = \
+"-----BEGIN CERTIFICATE-----\n" \
+"MIIFBjCCAu6gAwIBAgIRAIp9PhPWLzDvI4a9KQdrNPgwDQYJKoZIhvcNAQELBQAwTzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2VhcmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMjQwMzEzMDAwMDAwWhcNMjcwMzEyMjM1OTU5WjAzMQswCQYDVQQGEwJVUzEWMBQGA1UEChMNTGV0J3MgRW5jcnlwdDEMMAoGA1UEAxMDUjExMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuoe8XBsAOcvKCs3UZxD5ATylTqVhyybKUvsVAbe5KPUoHu0nsyQYOWcJDAjs4DqwO3cOvfPlOVRBDE6uQdaZdN5R2+97/1i9qLcT9t4x1fJyyXJqC4N0lZxGAGQUmfOx2SLZzaiSqhwmej/+71gFewiVgdtxD4774zEJuwm+UE1fj5F2PVqdnoPy6cRms+EGZkNIGIBloDcYmpuEMpexsr3E+BUAnSeI++JjF5ZsmydnS8TbKF5pwnnwSVzgJFDhxLyhBax7QG0AtMJBP6dYuC/FXJuluwme8f7rsIU5/agK70XEeOtlKsLPXzze41xNG/cLJyuqC0J3U095ah2H2QIDAQABo4H4MIH1MA4GA1UdDwEB/wQEAwIBhjAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwEwEgYDVR0TAQH/BAgwBgEB/wIBADAdBgNVHQ4EFgQUxc9GpOr0w8B6bJXELbBeki8m47kwHwYDVR0jBBgwFoAUebRZ5nu25eQBc4AIiMgaWPbpm24wMgYIKwYBBQUHAQEEJjAkMCIGCCsGAQUFBzAChhZodHRwOi8veDEuaS5sZW5jci5vcmcvMBMGA1UdIAQMMAowCAYGZ4EMAQIBMCcGA1UdHwQgMB4wHKAaoBiGFmh0dHA6Ly94MS5jLmxlbmNyLm9yZy8wDQYJKoZIhvcNAQELBQADggIBAE7iiV0KAxyQOND1H/lxXPjDj7I3iHpvsCUf7b632IYGjukJhM1yv4Hz/MrPU0jtvfZpQtSlET41yBOykh0FX+ou1Nj4ScOt9ZmWnO8m2OG0JAtIIE3801S0qcYhyOE2G/93ZCkXufBL713qzXnQv5C/viOykNpKqUgxdKlEC+Hi9i2DcaR1e9KUwQUZRhy5j/PEdEglKg3l9dtD4tuTm7kZtB8v32oOjzHTYw+7KdzdZiw/sBtnUfhBPORNuay4pJxmY/WrhSMdzFO2q3Gu3MUBcdo27goYKjL9CTF8j/Zz55yctUoVaneCWs/ajUX+HypkBTA+c8LGDLnWO2NKq0YD/pnARkAnYGPfUDoHR9gVSp/qRx+ZWghiDLZsMwhN1zjtSC0uBWiugF3vTNzYIEFfaPG7Ws3jDrAMMYebQ95JQ+HIBD/RPBuHRTBpqKlyDnkSHDHYPiNX3adPoPAcgdF3H2/W0rmoswMWgTlLn1Wu0mrks7/qpdWfS6PJ1jty80r2VKsM/Dj3YIDfbjXKdaFU5C+8bhfJGqU3taKauuz0wHVGT3eo6FlWkWYtbt4pgdamlwVeZEW+LM7qZEJEsMNPrfC03APKmZsJgpWCDWOKZvkZcvjVuYkQ4omYCTX5ohy+knMjdOmdH9c7SpqEWBDC86fiNex+O0XOMEZSa8DA" \
+"-----END CERTIFICATE-----\n";
+
 // ----- IMPLEMENTAÇÃO DO HUFFMAN -----
-// Estrutura de nó da árvore Huffman
 struct HuffmanNode {
   char ch;
   int freq;
   HuffmanNode *left, *right;
   HuffmanNode(char _ch, int _freq) : ch(_ch), freq(_freq), left(NULL), right(NULL) {}
 };
-
-// Função de comparação para a fila de prioridade
 struct CompareNode {
   bool operator()(HuffmanNode* const & n1, HuffmanNode* const & n2) {
     return n1->freq > n2->freq;
@@ -29,7 +32,6 @@ struct CompareNode {
 HuffmanNode* huffmanTree = NULL;
 std::map<char, String> huffmanCodes;
 
-// Constrói os códigos a partir da árvore Huffman
 void buildHuffmanCodes(HuffmanNode* root, String code = "") {
   if (!root) return;
   if (!root->left && !root->right) {
@@ -39,37 +41,27 @@ void buildHuffmanCodes(HuffmanNode* root, String code = "") {
   buildHuffmanCodes(root->right, code + "1");
 }
 
-// Constrói a árvore Huffman com base na frequência dos caracteres do dado
 HuffmanNode* buildHuffmanTree(const String &data) {
   std::map<char,int> freq;
-  for (char c : data) {
-    freq[c]++;
-  }
+  for (char c : data) freq[c]++;
   std::priority_queue<HuffmanNode*, std::vector<HuffmanNode*>, CompareNode> pq;
-  for (auto &p : freq) {
-    pq.push(new HuffmanNode(p.first, p.second));
-  }
+  for (auto &p : freq) pq.push(new HuffmanNode(p.first, p.second));
   while (pq.size() > 1) {
     HuffmanNode* l = pq.top(); pq.pop();
     HuffmanNode* r = pq.top(); pq.pop();
     HuffmanNode* m = new HuffmanNode('\0', l->freq + r->freq);
-    m->left = l;
-    m->right = r;
+    m->left = l; m->right = r;
     pq.push(m);
   }
   return pq.top();
 }
 
-// Comprime a string de dados usando os códigos gerados
 String huffmanCompress(const String &data) {
   String out;
-  for (char c : data) {
-    out += huffmanCodes[c];
-  }
+  for (char c : data) out += huffmanCodes[c];
   return out;
 }
 
-// Descomprime a string de bits usando a árvore Huffman
 String huffmanDecompress(const String &bits, HuffmanNode* root) {
   String out;
   HuffmanNode* curr = root;
@@ -83,7 +75,6 @@ String huffmanDecompress(const String &bits, HuffmanNode* root) {
   return out;
 }
 
-// Libera a memória ocupada pela árvore Huffman
 void freeHuffmanTree(HuffmanNode* node) {
   if (!node) return;
   freeHuffmanTree(node->left);
@@ -91,7 +82,6 @@ void freeHuffmanTree(HuffmanNode* node) {
   delete node;
 }
 
-// Função auxiliar para reconstruir uma árvore Huffman a partir de um dicionário serializado
 HuffmanNode* buildHuffmanTreeFromCodes(std::map<char, String> &codes) {
   HuffmanNode* root = new HuffmanNode('\0', 0);
   for (auto &entry : codes) {
@@ -101,14 +91,10 @@ HuffmanNode* buildHuffmanTreeFromCodes(std::map<char, String> &codes) {
     for (int i = 0; i < code.length(); i++) {
       char bit = code.charAt(i);
       if (bit == '0') {
-        if (!current->left) {
-          current->left = new HuffmanNode('\0', 0);
-        }
+        if (!current->left) current->left = new HuffmanNode('\0', 0);
         current = current->left;
       } else {
-        if (!current->right) {
-          current->right = new HuffmanNode('\0', 0);
-        }
+        if (!current->right) current->right = new HuffmanNode('\0', 0);
         current = current->right;
       }
     }
@@ -118,80 +104,51 @@ HuffmanNode* buildHuffmanTreeFromCodes(std::map<char, String> &codes) {
 }
 
 // --------------------------------------------------------------------------------
-// DEFINIÇÕES DE PINOS E CONSTANTES DO PROJETO
+// PINOS E CONSTANTES
 // --------------------------------------------------------------------------------
-
-// Sensor DHT interno (container)
-const int DHT_PIN_IN = 4;
-const int DHT_TYPE =   DHT11;
+const int DHT_PIN_IN      = 4;
+const int DHT_TYPE        = DHT11;
 DHT dht_in(DHT_PIN_IN, DHT_TYPE);
-
-// Sensor DHT externo (sala)
-const int DHT_PIN_EXT = 18;
+const int DHT_PIN_EXT     = 18;
 DHT dht_ext(DHT_PIN_EXT, DHT_TYPE);
-
-// Sensor ultrassônico
-const int TRIG_PIN = 5;
-const int ECHO_PIN = 23;
-
-// LEDs de status
-const int LED_OK_PIN = 2;     // LED Verde (status normal)
-const int LED_ALERT_PIN = 15; // LED Vermelho (alerta)
-
-// Módulo PN532 (RFID)
-const int SDA_PIN = 21;
-const int SCL_PIN = 22;
+const int TRIG_PIN        = 5;
+const int ECHO_PIN        = 23;
+const int LED_OK_PIN      = 2;
+const int LED_ALERT_PIN   = 15;
+const int SDA_PIN         = 21;
+const int SCL_PIN         = 22;
 Adafruit_PN532 nfc(SDA_PIN, SCL_PIN);
-
-// Configuração do LCD 20x4
-const int LCD_RS = 26;
-const int LCD_E =  27;
-const int LCD_D4 = 33;
-const int LCD_D5 = 32;
-const int LCD_D6 = 25;
-const int LCD_D7 = 13;
+const int LCD_RS = 26, LCD_E = 27, LCD_D4 = 33, LCD_D5 = 32, LCD_D6 = 25, LCD_D7 = 13;
 LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 
-// Limites e variáveis de temperatura (container)
-float THRESHOLD_TEMP = 25.5;
+float THRESHOLD_TEMP       = 25.5;
 unsigned long tempAboveStart = 0;
-
-// Intervalos de tempo (ms)
 const unsigned long PERIODIC_SEND_INTERVAL = 60000;
 const unsigned long GREEN_BLINK_INTERVAL   = 5000;
 const unsigned long RED_BLINK_INTERVAL     = 1000;
 const unsigned long UNAUTH_WINDOW_BEFORE   = 60000;
 const unsigned long TEMP_ALERT_DURATION    = 10000;
-
-// Distância para considerar porta fechada
 const float distancia_limite = 7.0;
 
-// MQTT: tópicos dinâmicos
 String centro    = "centroDeVacinaXYZ";
 String container = "containerXYZ";
 String mqtt_topic = "/" + centro + "/" + container;
-
-// Tópico de controle para comandos
 const char* control_topic = "esp32/control";
 
-// Wi-Fi e MQTT
 const char* ssid     = "Starlink_CIT";
 const char* password = "Ufrr@2024Cit";
-const char* mqtt_server   = "07356c1b41e34d65a6152a202151c24d.s1.eu.hivemq.cloud";
+const char* mqtt_server   = "6ef5d17c52994de69c847b10011cad30.s1.eu.hivemq.cloud";
 const int   mqtt_port     = 8883;
-const char* mqtt_username = "hivemq.webclient.1744472320531";
-const char* mqtt_password = "QOwsih0.7!tV%L6gD1B>";
+const char* mqtt_username = "hivemq.webclient.1745085086443";
+const char* mqtt_password = "1mI3:&xakvOCg*T$4JP7";
 
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
-// Estado global
 unsigned long lastPeriodicSend = 0, lastGreenBlink = 0, lastRedBlink = 0;
 String usuarioAtual = "desconhecido";
 bool doorOpen = false, alarmState = false;
 unsigned long lastRFIDTime = 0;
-
-// Histórico de temperaturas
 #define TEMP_HISTORY_SIZE 10
 float tempHistory[TEMP_HISTORY_SIZE] = {0};
 int tempIndex = 0;
@@ -204,44 +161,33 @@ void setup() {
   Serial.begin(115200);
   Serial.println("[DEBUG] Iniciando setup...");
 
-  // LEDs
   pinMode(LED_OK_PIN, OUTPUT);
   pinMode(LED_ALERT_PIN, OUTPUT);
-
-  // Ultrassônico
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
 
-  // DHT
   dht_in.begin();
   dht_ext.begin();
   Serial.println("[DEBUG] Sensores DHT inicializados.");
 
-  // PN532
   Serial.println("[DEBUG] Inicializando PN532...");
   nfc.begin();
   uint32_t version = nfc.getFirmwareVersion();
-  if (version) {
-    nfc.SAMConfig();
-    Serial.println("[DEBUG] PN532 OK.");
-  } else {
-    Serial.println("[ERROR] PN532 não detectado!");
-  }
+  if (version) { nfc.SAMConfig(); Serial.println("[DEBUG] PN532 OK."); }
+  else { Serial.println("[ERROR] PN532 não detectado!"); }
 
-  // LCD
   lcd.begin(20, 4);
   lcd.clear();
   lcd.print("Iniciando...");
   Serial.println("[DEBUG] LCD inicializado.");
 
-  // Wi‑Fi
   setup_wifi();
 
-  // MQTT
-  espClient.setInsecure();
+  // Configuração TLS/MQTT
+  espClient.setCACert(hivemq_root_ca);
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
-  Serial.println("[DEBUG] MQTT configurado.");
+  Serial.println("[DEBUG] MQTT TLS configurado.");
 
   Serial.println("[DEBUG] Setup concluído!!!");
 }
@@ -250,13 +196,9 @@ void setup() {
 // LOOP
 // --------------------------------------------------------------------------------
 void loop() {
-  if (!client.connected()) {
-    Serial.println("[DEBUG] MQTT desconectado, reconectando...");
-    reconnect_mqtt();
-  }
+  if (!client.connected()) reconnect_mqtt();
   client.loop();
 
-  // Atualizações periódicas de estado
   atualizarTempHistory();
   verificarRFID();
   atualizarDoorState();
@@ -266,19 +208,14 @@ void loop() {
   unsigned long now = millis();
   if (now - lastPeriodicSend >= PERIODIC_SEND_INTERVAL) {
     lastPeriodicSend = now;
-    Serial.println("[DEBUG] Envio periódico acionado.");
     enviarDados("periodic");
   }
 
-  // LEDs de status
   if (!alarmState && now - lastGreenBlink >= GREEN_BLINK_INTERVAL) {
-    lastGreenBlink = now;
-    blinkLED(LED_OK_PIN, 100);
+    lastGreenBlink = now; blinkLED(LED_OK_PIN, 100);
   }
   if (alarmState && now - lastRedBlink >= RED_BLINK_INTERVAL) {
-    lastRedBlink = now;
-    blinkLED(LED_ALERT_PIN, 100);
-    Serial.println("[DEBUG] Blink vermelho.");
+    lastRedBlink = now; blinkLED(LED_ALERT_PIN, 100);
   }
 }
 
