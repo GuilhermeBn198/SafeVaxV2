@@ -1,4 +1,4 @@
-# main.py
+# app.py
 from flask import Flask, request, jsonify
 import psycopg2.extras
 from db import (
@@ -8,13 +8,14 @@ from db import (
     listar_todos_dados
 )
 from mqtt_client import iniciar_mqtt
-from flaskserver.huffman_decoder_dict_novo import huffman_decompress
+# Importando o decodificador Huffman final
+from huffman_decoder import huffman_decompress
 
 app = Flask(__name__)
 # Inicia conexão MQTT em background
-print("cheguei aqui!!! APP.PY ANTES DE INICIAR MQTT")
+print("Iniciando aplicação Flask")
 iniciar_mqtt()
-print("cheguei aqui!!! APP.PY DEPOIS DE INICIAR MQTT")
+print("Cliente MQTT iniciado com sucesso")
 
 # Rotas Unidades
 @app.route('/api/unidades', methods=['POST'])
