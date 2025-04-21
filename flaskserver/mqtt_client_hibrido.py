@@ -1,10 +1,11 @@
-# mqtt_client.py
+# mqtt_client_hibrido.py
 import os
 import json
+import ssl
 import paho.mqtt.client as mqtt # type: ignore
-from db import inserir_monitoramento
-# Importando o decodificador Huffman final
-from huffman_decoder import huffman_decompress
+from db import criar_container, inserir_monitoramento
+# Importando o decodificador Huffman híbrido
+from huffman_decoder_dict_novo_hibrido import huffman_decompress
 
 # Variáveis de ambiente para MQTT
 MQTT_BROKER = os.getenv('MQTT_BROKER')
@@ -27,26 +28,40 @@ def on_message(client, userdata, msg):
         
         # Verifica se a mensagem contém dados compactados com Huffman
         if 'huffman' in payload and 'dict' in payload:
-            # Usa o decodificador Huffman final com o comprimento esperado, se disponível
+            # Usa o decodificador Huffman híbrido com o comprimento esperado, se disponível
             expected_length = payload.get('length')
-            json_str = huffman_decompress(payload['huffman'], payload['dict'], expected_length)
+            
+            # Usa a versão do dicionário especificada ou a abordagem híbrida por padrão
+            version = payload.get('dict', 'hibrido')
+            
+            json_str = huffman_decompress(payload['huffman'], version, expected_length)
             print(f"JSON descompactado: '{json_str}'")
             data = json.loads(json_str)
         else:
-            data = payload
-            
+            data = payload 
         # Extrai unit_id e container_id do tópico
         unit_id, container_id = msg.topic.strip('/').split('/')
         
-        # Insere os dados no banco de dados
+        try:
+            criar_container(unit_id, container_id, nome=container_id)
+        except ValueError:
+            pass
+        # agora insere o monitoramento
         inserir_monitoramento(unit_id, container_id, **data)
+        # Insere os dados no banco de dados
         print(f"Inserido: {unit_id}/{container_id} → {data}")
     except Exception as e:
         print("Erro no processamento MQTT:", e)
 
-
 def iniciar_mqtt():
     client = mqtt.Client()
+    client.tls_set(
+        ca_certs=None,                   # None: usa certificado raiz do OS
+        certfile=None,
+        keyfile=None,
+        cert_reqs=ssl.CERT_REQUIRED,
+        tls_version=ssl.PROTOCOL_TLS_CLIENT
+    )
     client.enable_logger()
     # Configura autenticação
     if MQTT_USER and MQTT_PASS:
@@ -55,7 +70,6 @@ def iniciar_mqtt():
         
     client.on_connect = on_connect
     client.on_message = on_message
-    client.tls_set()  # Usa TLS com as configurações padrão
     print(f"Conectando a {MQTT_BROKER}:{MQTT_PORT}...")
     client.connect(MQTT_BROKER, MQTT_PORT, 60)
     client.loop_start()

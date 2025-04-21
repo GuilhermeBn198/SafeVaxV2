@@ -1,22 +1,15 @@
-# Imagem base com Python
 FROM python:3.9-slim
-
-# Define o diretório de trabalho
 WORKDIR /app
 
-# Copia o arquivo de requisitos e instala as dependências
-COPY requirements.txt requirements.txt
+COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Copia o restante do código para o container
 COPY . .
 
-# Define variáveis de ambiente para o Flask
-ENV FLASK_APP=app.py
-ENV FLASK_RUN_HOST=0.0.0.0
+# Torna o entrypoint executável
+RUN chmod +x entrypoint.sh
 
-# Expõe a porta 5000 para acesso externo
 EXPOSE 5000
 
-# Comando para iniciar o servidor Flask
-CMD ["flask", "run"]
+# Usa o entrypoint
+ENTRYPOINT ["./entrypoint.sh"]

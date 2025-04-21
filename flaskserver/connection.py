@@ -1,7 +1,7 @@
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg2 # type: ignore
+from psycopg2.extras import RealDictCursor # type: ignore
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv # type: ignore
 
 # Carrega variáveis de ambiente
 load_dotenv()
