@@ -1,7 +1,8 @@
-FROM python:3.11-alpine
+FROM python:3.12-alpine
 WORKDIR /app
 
 COPY requirements.txt .
+RUN apk add --no-cache ca-certificates
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # copia tudo, incluindo o entrypoint.sh com CRLF
