@@ -8,7 +8,6 @@ import re
 # Dicionário Huffman invertido (binário -> caractere) COMPLETO
 # Inclui todas as letras do alfabeto (maiúsculas e minúsculas), números e símbolos comuns em JSON
 HUFFMAN_DICT_V2 = {
-    # Caracteres originais do dicionário V1
     "000": '"',   "0010": ':',   "0011": ',',   "0100": 'a',
     "0101": 'e',  "0110": 'i',   "0111": 'o',   "1000": 'r',
     "1001": 't',  "1010": 'm',   "1011": 'u',   "1100": 'd',
@@ -22,17 +21,14 @@ HUFFMAN_DICT_V2 = {
     "10110": 'k', "10111": 'O',  "11000": 'K',  "11001": 'I',
     "110001": 'T',"110010": 'U', "110011": 'M', "110100": ' ',
     
-    # Letras minúsculas adicionais
     "110101": 'f', "110110": 'j', "110111": 'q', "111000": 'w',
     "111001": 'x', "111010": 'y', "111011": 'z',
     
-    # Letras maiúsculas adicionais
     "111100": 'B', "111101": 'G', "111110": 'H', "111111": 'J',
     "1111000": 'N', "1111001": 'P', "1111010": 'Q', "1111011": 'S',
     "1111100": 'V', "1111101": 'W', "1111110": 'X', "1111111": 'Y',
     "11111000": 'Z',
     
-    # Símbolos adicionais comuns em JSON
     "11111001": '{', "11111010": '}', "11111011": '[', "11111100": ']',
     "11111101": '-', "11111110": '+', "11111111": '/', "111111000": '\\',
     "111111001": '=', "111111010": '&', "111111011": '%', "111111100": '@',
@@ -140,7 +136,7 @@ def reconstruct_json_from_template(decoded_str):
         print(f"Não foi possível reconstruir JSON, apenas {values_found} valores encontrados")
         return None
 
-def huffman_decompress(encoded_b64, version="v1", expected_length=None):
+def huffman_decompress(encoded_b64, version, expected_length=None):
     """
     Descomprime uma string codificada em base64 usando o algoritmo Huffman.
     
@@ -152,6 +148,7 @@ def huffman_decompress(encoded_b64, version="v1", expected_length=None):
     Returns:
         str: String JSON descomprimida
     """
+    print(f"[DEBUG] versão recebida em huffman_decompress: {repr(version)}")
     # Seleciona o dicionário apropriado com base na versão
     if version == "v1":
         huffman_dict = HUFFMAN_DICT_V1

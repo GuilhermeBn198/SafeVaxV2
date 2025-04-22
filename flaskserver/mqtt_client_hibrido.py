@@ -23,7 +23,7 @@ def on_message(client, userdata, msg):
     print(f"Mensagem recebida do tópico {msg.topic}: {msg.payload}")
     try:
         payload_raw = msg.payload.decode('utf-8')
-        print(f"Payload decodificado: '{payload_raw}'")
+        # print(f"Payload codificado para utf-8: '{payload_raw}'")
         payload = json.loads(payload_raw)
         
         # Verifica se a mensagem contém dados compactados com Huffman
@@ -32,7 +32,7 @@ def on_message(client, userdata, msg):
             expected_length = payload.get('length')
             
             # Usa a versão do dicionário especificada ou a abordagem híbrida por padrão
-            version = payload.get('dict', 'hibrido')
+            version = payload.get('dict')
             
             json_str = huffman_decompress(payload['huffman'], version, expected_length)
             print(f"JSON descompactado: '{json_str}'")
@@ -42,11 +42,6 @@ def on_message(client, userdata, msg):
         # Extrai unit_id e container_id do tópico
         unit_id, container_id = msg.topic.strip('/').split('/')
         
-        try:
-            criar_container(unit_id, container_id, nome=container_id)
-        except ValueError:
-            pass
-        # agora insere o monitoramento
         inserir_monitoramento(unit_id, container_id, **data)
         # Insere os dados no banco de dados
         print(f"Inserido: {unit_id}/{container_id} → {data}")

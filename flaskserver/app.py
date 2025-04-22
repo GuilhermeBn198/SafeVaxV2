@@ -3,7 +3,7 @@ from db import (
     listar_unidades, listar_containers,
     buscar_monitoramento, listar_todos_dados
 )
-from mqtt_client import iniciar_mqtt
+from mqtt_client_hibrido import iniciar_mqtt
 
 app = Flask(__name__)
 print("Aplicação Flask iniciada")
