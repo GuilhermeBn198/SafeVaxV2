@@ -1,15 +1,15 @@
-FROM python:3.9-slim
+FROM python:3.11-alpine
 WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
+# copia tudo, incluindo o entrypoint.sh com CRLF
 COPY . .
 
-# Torna o entrypoint executável
-RUN chmod +x entrypoint.sh
+# remove o CR (\r) de cada linha e ajusta permissão
+RUN sed -i 's/\r$//' entrypoint.sh \
+ && chmod +x entrypoint.sh
 
 EXPOSE 5000
-
-# Usa o entrypoint
 ENTRYPOINT ["./entrypoint.sh"]
