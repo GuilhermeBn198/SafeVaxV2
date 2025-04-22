@@ -51,9 +51,7 @@ def on_message(client, userdata, msg):
 def iniciar_mqtt():
     client = mqtt.Client()
     client.tls_set(
-        ca_certs=None,                   # None: usa certificado raiz do OS
-        certfile=None,
-        keyfile=None,
+        ca_certs="/etc/ssl/certs/ca-certificates.crt",
         cert_reqs=ssl.CERT_REQUIRED,
         tls_version=ssl.PROTOCOL_TLS_CLIENT
     )

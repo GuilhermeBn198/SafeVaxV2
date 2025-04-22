@@ -189,6 +189,7 @@ String binaryToBase64(const String &binary) {
   
   // Cria uma cópia modificável do input
   String paddedBinary = binary;
+  Serial.printf("\n[DEBUG] TAMANHO DO CODIGO BINARIO: %s\n", String(paddedBinary.length()).c_str());
   int len = paddedBinary.length();
   
   // Preencher com zeros se necessário
@@ -209,12 +210,19 @@ String binaryToBase64(const String &binary) {
     result += base64_chars[val];
   }
 
-  // Ajustar padding
-  int pad = (6 - (binary.length() % 6)) % 6;
-  for (int p = 0; p < pad/2; p++) {
+  // // Ajustar padding ANTIGO
+  // int pad = (6 - (binary.length() % 6)) % 6;
+  // for (int p = 0; p < pad/2; p++) {
+  //   result += '=';
+  // }
+
+  // Ajustar padding NOVO
+  while (result.length() % 4 != 0) {
     result += '=';
   }
-  
+  Serial.printf("\n[DEBUG] O PAD DO CODIGO EM BASE64: %s\n", String(pad).c_str());
+  Serial.printf("\n[DEBUG] TAMANHO DO CODIGO EM BASE64 %s\n", String(result.length()).c_str());
+  Serial.printf("\n[DEBUG] CODIGO EM BASE64 %s\n", result.c_str());
   return result;
 }
 
