@@ -220,7 +220,7 @@ String binaryToBase64(const String &binary) {
   while (result.length() % 4 != 0) {
     result += '=';
   }
-  Serial.printf("\n[DEBUG] O PAD DO CODIGO EM BASE64: %s\n", String(pad).c_str());
+  // Serial.printf("\n[DEBUG] O PAD DO CODIGO EM BASE64: %s\n", String(pad).c_str());
   Serial.printf("\n[DEBUG] TAMANHO DO CODIGO EM BASE64 %s\n", String(result.length()).c_str());
   Serial.printf("\n[DEBUG] CODIGO EM BASE64 %s\n", result.c_str());
   return result;
