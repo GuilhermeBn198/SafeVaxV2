@@ -1,28 +1,16 @@
-FROM python:3.12-slim
-
-# 1) Chromium + Chromedriver + dependências nativas do Chrome + Postgres client + libs para psycopg2
-RUN apt-get update && apt-get install -y \
-    chromium chromium-driver \
-    libglib2.0-0 libnss3 libgconf-2-4 libxss1 libasound2 \
-    postgresql-client libpq-dev gcc \
-  && rm -rf /var/lib/apt/lists/*
-
-# 2) Variáveis de ambiente para conectar ao Postgres
-ENV DB_HOST=postgres
-ENV DB_PORT=5432
-
+FROM python:3.12-alpine
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+RUN apk add --no-cache ca-certificates
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# 4) Copia e libera o entrypoint que aguarda o Postgres e executa a migração + flask
-COPY entrypoint.sh ./
-RUN chmod +x entrypoint.sh
-
-# 5) Copia todo o código da aplicação
+# copia tudo, incluindo o entrypoint.sh com CRLF
 COPY . .
 
-# 6) Entry-point orquestra migração e start do Flask
+# remove o CR (\r) de cada linha e ajusta permissão
+RUN sed -i 's/\r$//' entrypoint.sh \
+ && chmod +x entrypoint.sh
+
+EXPOSE 5000
 ENTRYPOINT ["./entrypoint.sh"]

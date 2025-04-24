@@ -2,4 +2,3 @@ Flask
 psycopg2-binary
 python-dotenv
 paho-mqtt
-requests
