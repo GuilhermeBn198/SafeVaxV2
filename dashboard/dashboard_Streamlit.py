@@ -15,7 +15,7 @@ st.set_page_config(layout="wide")
 # Carregando o dataset simulado (substituir pelo banco de dados real proveniente do servidor flask)
 @st.cache_data
 def criar_dataframe():
-    df = pd.read_csv('dados_simulados_fev-abril.csv')
+    df = pd.read_csv('dashboard/dados_simulados_fev-abril.csv')
     return df
 df = criar_dataframe()
 
