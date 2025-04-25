@@ -114,7 +114,7 @@ def get_image_base64(path):
         return base64.b64encode(img_file.read()).decode()
 
 # Carregando imagem (logo) e convertendo para base64
-image_path = "logo_Safevax.png"
+image_path = "dashboard/logo_Safevax.png"
 image_base64 = get_image_base64(image_path)
 
 # HTML/CSS para alinhar imagem e título
@@ -543,4 +543,3 @@ with col2:
     # Exibe o dataset como tabela no dashboard
     st.dataframe(styled, use_container_width=True)
     # ----------------------------------- FINAL GRÁFICO 2 ----------------------------------- #
-
