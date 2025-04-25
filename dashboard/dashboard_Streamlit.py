@@ -275,7 +275,12 @@ if rule == "24H":
             f"<b>Temperatura interna máxima:</b> {r['DHT_interno_temp']}°C"
         ), axis=1
     )
-
+    hover_ex = df_resampled.apply(
+        lambda r: (
+            f"<b>Dia analisado:</b> {r['timestamp'].strftime('%d/%m/%Y')}<br>"
+            f"<b>Temperatura externa máxima:</b> {r['DHT_externo_temp']}°C"
+        ), axis=1
+    )
 
 # 7) Processa alertas no nível original
 alerts = df_period[(df_period['Estado_alerta']=='ALERT') & (df_period['Motivo']=='temp_high')]
@@ -338,7 +343,7 @@ with st.container():
 
     # C. Último alerta (se houver)
     mapeamento_motivos = {  # Dicionário de mapeamento para os motivos
-        'temp_high': 'Temperatura Elevada',
+        'temp_high': 'Temperatura elevada',
         'unauthorized_door': 'Acesso não autorizado'
         }
     
