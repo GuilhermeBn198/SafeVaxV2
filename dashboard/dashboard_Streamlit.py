@@ -1,3 +1,23 @@
+import subprocess
+import sys
+
+
+# Verifica se as bibliotecas necessárias estão instaladas e, se não, instala-as
+def install_libraries(): 
+    required_libraries = [
+        "streamlit", "pandas", "numpy", "plotly", "base64", "datetime"
+    ]
+    for lib in required_libraries:
+        try:
+            __import__(lib)
+        except ImportError:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", lib])
+
+# Instalação de bibliotecas necessárias
+install_libraries()
+
+
+
 # Bibliotecas
 import streamlit as st
 import pandas as pd
@@ -79,7 +99,7 @@ st.markdown(
             box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.3); /* Sombra ao redor dos containers */   
         }   
 
-        
+
 
         /* Removendo padding e espaçamentos padrão */
         .main .block-container {
@@ -89,7 +109,7 @@ st.markdown(
             padding-right: 3rem;
         }
 
-         
+
 
         /* Estilo para os gráficos Plotly */
         [data-testid="stPlotlyChart"] {
@@ -171,8 +191,7 @@ st.markdown(
     unsafe_allow_html=True)
 
 with col_txt_filtro:
-    st.markdown("""
-    <h3 style='
+    st.markdown("""<h3 style='
         font-size:26px;
         color:black;
         margin-bottom: -15px;  /* Reduz espaço abaixo do título */
