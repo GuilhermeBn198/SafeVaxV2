@@ -8,6 +8,10 @@ ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN")   # token temporário ou perma
 API_URL = f"https://graph.facebook.com/v18.0/{PHONE_ID}/messages"
 
 def send_whatsapp_message(body: str, to: str) -> bool:
+    if not ACCESS_TOKEN:
+        print("[WhatsApp] Erro: ACCESS_TOKEN não configurado. Verifique o arquivo .env.")
+        return False
+
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
@@ -27,7 +31,9 @@ def send_whatsapp_message(body: str, to: str) -> bool:
             return True
         else:
             print(f"[WhatsApp] Erro {resp.status_code}: {resp.text}")
+            print(f"[WhatsApp] Payload enviado: {payload}")
             return False
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         print("[WhatsApp] Exceção ao enviar:", e)
+        print(f"[WhatsApp] Payload enviado: {payload}")
         return False
